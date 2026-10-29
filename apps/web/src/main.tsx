@@ -1,15 +1,15 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import { HomePage } from './pages/HomePage'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import { HomePage } from './pages/HomePage';
 
-const rootElement = document.getElementById('root')
+const rootElement = document.getElementById('root');
 if (!rootElement) {
-  throw new Error('Elemento #root não encontrado no index.html')
+  throw new Error('Elemento #root não encontrado no index.html');
 }
 
 createRoot(rootElement).render(
   <StrictMode>
     <HomePage />
   </StrictMode>,
-)
+);

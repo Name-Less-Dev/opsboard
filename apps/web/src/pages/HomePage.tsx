@@ -1,38 +1,35 @@
-import { useEffect, useState } from 'react'
-import { ApiError, apiGet } from '../lib/api'
+import { useEffect, useState } from 'react';
+import { ApiError, apiGet } from '../lib/api';
 
 type HealthResponse = {
-  status: 'ok'
-  database: 'up'
-}
+  status: 'ok';
+  database: 'up';
+};
 
-type HealthState =
-  | { kind: 'loading' }
-  | { kind: 'ok' }
-  | { kind: 'error'; message: string }
+type HealthState = { kind: 'loading' } | { kind: 'ok' } | { kind: 'error'; message: string };
 
 function describeError(error: unknown): string {
-  if (error instanceof ApiError) return `${error.message} (HTTP ${error.status})`
-  if (error instanceof Error) return error.message
-  return 'Erro desconhecido'
+  if (error instanceof ApiError) return `${error.message} (HTTP ${error.status})`;
+  if (error instanceof Error) return error.message;
+  return 'Erro desconhecido';
 }
 
 export function HomePage() {
-  const [health, setHealth] = useState<HealthState>({ kind: 'loading' })
+  const [health, setHealth] = useState<HealthState>({ kind: 'loading' });
 
   useEffect(() => {
     // Cancela a requisição se o componente desmontar (o StrictMode monta duas vezes em dev).
-    const controller = new AbortController()
+    const controller = new AbortController();
 
     apiGet<HealthResponse>('/health', controller.signal)
       .then(() => setHealth({ kind: 'ok' }))
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        setHealth({ kind: 'error', message: describeError(error) })
-      })
+        if (controller.signal.aborted) return;
+        setHealth({ kind: 'error', message: describeError(error) });
+      });
 
-    return () => controller.abort()
-  }, [])
+    return () => controller.abort();
+  }, []);
 
   return (
     <main className="home">
@@ -47,5 +44,5 @@ export function HomePage() {
         </p>
       )}
     </main>
-  )
+  );
 }
