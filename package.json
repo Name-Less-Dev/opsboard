@@ -1,0 +1,17 @@
+{
+  "name": "opsboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Painel de ordens de serviço full-stack (React + NestJS + PostgreSQL)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  }
+}

@@ -1,0 +1,28 @@
+# Dependências
+node_modules/
+
+# Builds
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Variáveis de ambiente (só o .env.example vai para o git)
+.env
+.env.*
+!.env.example
+
+# Playwright
+playwright-report/
+test-results/
+
+# Logs e sistema
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
