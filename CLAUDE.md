@@ -21,8 +21,8 @@ em entrevista tudo o que estiver aqui.
 ## Stack
 | Camada | Tecnologia |
 |---|---|
-| Runtime | Node 24 LTS (`.nvmrc`) |
-| Front | React + TypeScript + Vite (`apps/web`) |
+| Runtime | Node 24 LTS (`.nvmrc`), TypeScript 5.9 nos dois apps |
+| Front | React 19 + TypeScript + Vite 8 (`apps/web`) |
 | API | NestJS 11 + TypeScript (`apps/api`) — plano B: Fastify/Express |
 | Banco | PostgreSQL 17 + Prisma |
 | Auth | JWT, perfis `OPERATOR` e `SUPERVISOR` |
@@ -41,12 +41,14 @@ Monorepo com npm workspaces (`apps/*`).
 ## Comandos (raiz)
 | Comando | O que faz |
 |---|---|
-| `npm install` | Instala as dependências de todos os workspaces |
+| `npm install` | Instala as dependências de todos os workspaces (um único lockfile na raiz) |
+| `npm run dev` | Sobe API (:3000, watch) e web (:5173) juntos via `concurrently` |
 | `npm run build` | Build de todos os apps |
 | `npm run test` | Testes de todos os apps |
 | `npm run lint` | Lint de todos os apps |
 
-> Pendentes (entram nas próximas tarefas): `npm run dev`, `docker compose up`, migrations e seed.
+> Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
+> Pendentes (próximas tarefas): `docker compose up`, migrations e seed.
 
 ## Escopo do MVP
 1. Login e dois perfis (operador e supervisor).
@@ -56,3 +58,8 @@ Monorepo com npm workspaces (`apps/*`).
 5. Painel com contadores por status e itens atrasados.
 6. Histórico de eventos de cada ordem, em tabela própria.
 7. Importar e exportar CSV.
+
+## Decisões
+- **TypeScript 5.9 nos dois apps** (o template do Vite trazia o TS 7): Nest, ts-jest e typescript-eslint dependem da API JS do compilador, e uma versão única simplifica o lint compartilhado.
+- **`strict: true` completo** em todos os tsconfigs (o Nest gera só flags isoladas).
+- **Sem `npm install` dentro dos apps**: tudo é instalado pela raiz para manter um único `package-lock.json`.
