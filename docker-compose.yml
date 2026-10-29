@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opsboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsboard}
+      POSTGRES_DB: ${POSTGRES_DB:-opsboard}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # A api só sobe quando o Postgres aceita conexões (ver depends_on abaixo).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PORT: 3000
+      # Dentro da rede do compose o host do banco é o nome do serviço, "db".
+      DATABASE_URL: postgresql://${POSTGRES_USER:-opsboard}:${POSTGRES_PASSWORD:-opsboard}@db:5432/${POSTGRES_DB:-opsboard}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

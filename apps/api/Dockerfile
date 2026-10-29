@@ -1,0 +1,24 @@
+# Build context é a raiz do monorepo, para usar o package-lock.json único.
+
+# --- build: instala tudo (inclusive devDependencies) e compila ---
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci -w @opsboard/api
+COPY apps/api apps/api
+RUN npm run build -w @opsboard/api
+
+# --- runtime: só dependências de produção + código compilado ---
+FROM node:24-alpine AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci -w @opsboard/api --omit=dev
+COPY --from=build /app/apps/api/dist apps/api/dist
+USER node
+EXPOSE 3000
+CMD ["node", "apps/api/dist/main.js"]

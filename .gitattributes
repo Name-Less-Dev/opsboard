@@ -1,0 +1,3 @@
+# Força LF no repositório e no checkout, independente do core.autocrlf de cada máquina.
+* text=auto eol=lf
+*.png binary

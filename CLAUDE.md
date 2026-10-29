@@ -46,9 +46,11 @@ Monorepo com npm workspaces (`apps/*`).
 | `npm run build` | Build de todos os apps |
 | `npm run test` | Testes de todos os apps |
 | `npm run lint` | Lint de todos os apps |
+| `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api) |
+| `docker compose down` | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga) |
 
 > Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
-> Pendentes (próximas tarefas): `docker compose up`, migrations e seed.
+> Pendentes (próximas tarefas): migrations e seed.
 
 ## Escopo do MVP
 1. Login e dois perfis (operador e supervisor).
@@ -63,3 +65,7 @@ Monorepo com npm workspaces (`apps/*`).
 - **TypeScript 5.9 nos dois apps** (o template do Vite trazia o TS 7): Nest, ts-jest e typescript-eslint dependem da API JS do compilador, e uma versão única simplifica o lint compartilhado.
 - **`strict: true` completo** em todos os tsconfigs (o Nest gera só flags isoladas).
 - **Sem `npm install` dentro dos apps**: tudo é instalado pela raiz para manter um único `package-lock.json`.
+- **Docker de produção, não de desenvolvimento**: os Dockerfiles são multi-stage (build → runtime enxuto). Para desenvolver com hot reload, use `npm run dev` no host e só o `db` do compose (`docker compose up db`).
+- **Mesma origem para front e API**: o web chama sempre `/api/...`. No Docker, o nginx repassa para `api:3000`; no `npm run dev`, o proxy do Vite faz o mesmo. Por isso não há CORS.
+- **Build context na raiz** nos Dockerfiles, para usar o `package-lock.json` único do workspace.
+- **`.gitattributes` com `eol=lf`**: evita CRLF em arquivos que rodam dentro de containers Linux.
