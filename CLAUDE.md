@@ -33,8 +33,8 @@ em entrevista tudo o que estiver aqui.
 
 ## Estrutura
 ```
-apps/api   # NestJS: auth, users, work-orders, events, prisma
-apps/web   # React: pages, components, features, lib
+apps/api   # NestJS: health, prisma (PrismaService global); próximos: auth, users, work-orders, events
+apps/web   # React: pages, lib (cliente HTTP); próximos: components, features
 ```
 Monorepo com npm workspaces (`apps/*`).
 
@@ -77,3 +77,6 @@ Monorepo com npm workspaces (`apps/*`).
 - **Seed com `tsx`**: o client gerado importa arquivos com extensão `.js`, que o `ts-node` não resolve para `.ts`.
 - **IDs UUID**, `assigneeId` opcional (ordem pode nascer sem responsável), eventos com `onDelete: Cascade`.
 - **Migrations rodam do host** (`npm run db:migrate`) contra o Postgres exposto na 5432; a imagem da API não carrega o CLI do Prisma.
+- **`GET /health` faz `SELECT 1`**: 200 `{status, database}` ou 503. O PrismaService não conecta no boot (conexão preguiçosa), então a API sobe com o banco fora e o health reporta o problema (~5 s, timeout do driver `pg`).
+- **Jest com `moduleNameMapper` para `.js`**: o client gerado importa `./x.js`; o mapper remove a extensão para o ts-jest achar o `.ts`.
+- **Teste e2e sem banco**: `overrideProvider(PrismaService)` troca o Prisma por um dublê.
