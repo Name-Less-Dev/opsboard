@@ -10,7 +10,14 @@ RUN npm ci -w @opsboard/api
 COPY apps/api apps/api
 RUN npm run build -w @opsboard/api
 
-# --- runtime: só dependências de produção + código compilado ---
+# --- migrate: job de uso único do compose. Reaproveita o build, que já tem o CLI do
+# Prisma, o schema e as migrations. `migrate deploy` só aplica o que já existe.
+FROM build AS migrate
+WORKDIR /app/apps/api
+USER node
+CMD ["npx", "prisma", "migrate", "deploy"]
+
+# --- runtime (último estágio = alvo padrão do docker build): só dependências de produção + código compilado ---
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app

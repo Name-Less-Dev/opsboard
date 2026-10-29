@@ -1,3 +1,7 @@
+# Campos "x-" são ignorados pelo compose; servem para reaproveitar valores via âncora YAML.
+# Dentro da rede do compose o host do banco é o nome do serviço, "db".
+x-database-url: &database-url postgresql://${POSTGRES_USER:-opsboard}:${POSTGRES_PASSWORD:-opsboard}@db:5432/${POSTGRES_DB:-opsboard}
+
 services:
   db:
     image: postgres:17-alpine
@@ -9,26 +13,39 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # A api só sobe quando o Postgres aceita conexões (ver depends_on abaixo).
+    # O migrate só roda quando o Postgres aceita conexões (ver depends_on abaixo).
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
       timeout: 3s
       retries: 10
 
+  # Job de uso único: aplica as migrations pendentes e termina.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      target: runtime
     environment:
       PORT: 3000
-      # Dentro da rede do compose o host do banco é o nome do serviço, "db".
-      DATABASE_URL: postgresql://${POSTGRES_USER:-opsboard}:${POSTGRES_PASSWORD:-opsboard}@db:5432/${POSTGRES_DB:-opsboard}
+      DATABASE_URL: *database-url
     ports:
       - '3000:3000'
     depends_on:
-      db:
-        condition: service_healthy
+      # A api só sobe depois que as migrations terminaram com sucesso (exit 0).
+      migrate:
+        condition: service_completed_successfully
 
   web:
     build:

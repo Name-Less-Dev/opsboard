@@ -18,7 +18,7 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 ## Pré-requisitos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (com Docker Compose)
-- [Node.js 24](https://nodejs.org/) e npm — necessários para rodar migrations e seed
+- [Node.js 24](https://nodejs.org/) e npm — só para desenvolver fora do Docker
 
 ## Rodando com Docker
 
@@ -38,12 +38,13 @@ repassa para o serviço `api`.
 
 ### Banco: migrations e seed
 
-Com o `db` rodando, em outro terminal na raiz do projeto:
+As migrations rodam sozinhas: o serviço `migrate` aplica as pendentes (`prisma migrate deploy`)
+e termina, e só então a API sobe. A ordem é `db` → `migrate` → `api` → `web`.
+
+O seed **não** roda sozinho, porque apaga os dados existentes. Com os serviços no ar:
 
 ```bash
-npm install
-npm run db:migrate
-npm run db:seed
+docker compose run --rm migrate npx prisma db seed
 ```
 
 O seed apaga e recria os dados de exemplo (pode ser rodado várias vezes): 1 supervisor,

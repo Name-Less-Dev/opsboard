@@ -58,7 +58,7 @@ Monorepo com npm workspaces (`apps/*`).
 | `npm run db:seed`           | Recria os dados de exemplo (idempotente: apaga e insere de novo)           |
 
 > Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
-> Antes de migrations/seed: `cp .env.example .env` e `docker compose up -d db`.
+> No Docker as migrations rodam sozinhas e o seed é `docker compose run --rm migrate npx prisma db seed`. Pelo host: `cp .env.example .env`, `docker compose up -d db` e os scripts `db:*`.
 > Usuários do seed: `supervisor@opsboard.dev`, `ana@opsboard.dev`, `bruno@opsboard.dev` — senha de dev `opsboard123`.
 
 ## Escopo do MVP
@@ -84,7 +84,7 @@ Monorepo com npm workspaces (`apps/*`).
 - **Client gerado em `apps/api/src/generated/prisma`** (fora do git). `prebuild` roda `prisma generate`, então `npm run build` e o Docker sempre geram antes de compilar.
 - **Seed com `tsx`**: o client gerado importa arquivos com extensão `.js`, que o `ts-node` não resolve para `.ts`.
 - **IDs UUID**, `assigneeId` opcional (ordem pode nascer sem responsável), eventos com `onDelete: Cascade`.
-- **Migrations rodam do host** (`npm run db:migrate`) contra o Postgres exposto na 5432; a imagem da API não carrega o CLI do Prisma.
+- **Migrations automáticas no compose**: serviço `migrate` (estágio `migrate` do Dockerfile da API, a partir do `build`) roda `prisma migrate deploy` e termina; a `api` depende dele com `service_completed_successfully`. A imagem de runtime continua sem o CLI do Prisma. O seed é manual (apaga dados): `docker compose run --rm migrate npx prisma db seed`. No host, `npm run db:migrate` (`migrate dev`) segue sendo o jeito de criar migrations novas.
 - **`GET /health` faz `SELECT 1`**: 200 `{status, database}` ou 503. O PrismaService não conecta no boot (conexão preguiçosa), então a API sobe com o banco fora e o health reporta o problema (~5 s, timeout do driver `pg`).
 - **Jest com `moduleNameMapper` para `.js`**: o client gerado importa `./x.js`; o mapper remove a extensão para o ts-jest achar o `.ts`.
 - **Teste e2e sem banco**: `overrideProvider(PrismaService)` troca o Prisma por um dublê.
