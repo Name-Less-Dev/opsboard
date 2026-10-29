@@ -24,7 +24,7 @@ em entrevista tudo o que estiver aqui.
 | Runtime | Node 24 LTS (`.nvmrc`), TypeScript 5.9 nos dois apps |
 | Front | React 19 + TypeScript + Vite 8 (`apps/web`) |
 | API | NestJS 11 + TypeScript (`apps/api`) — plano B: Fastify/Express |
-| Banco | PostgreSQL 17 + Prisma |
+| Banco | PostgreSQL 17 + Prisma 7.10.1 (driver adapter `@prisma/adapter-pg`) |
 | Auth | JWT, perfis `OPERATOR` e `SUPERVISOR` |
 | Infra local | Docker Compose (`web`, `api`, `db`) |
 | Testes | Jest (api), Vitest (web), Playwright (e2e) |
@@ -48,9 +48,12 @@ Monorepo com npm workspaces (`apps/*`).
 | `npm run lint` | Lint de todos os apps |
 | `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api) |
 | `docker compose down` | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga) |
+| `npm run db:migrate` | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env` |
+| `npm run db:seed` | Recria os dados de exemplo (idempotente: apaga e insere de novo) |
 
 > Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
-> Pendentes (próximas tarefas): migrations e seed.
+> Antes de migrations/seed: `cp .env.example .env` e `docker compose up -d db`.
+> Usuários do seed: `supervisor@opsboard.dev`, `ana@opsboard.dev`, `bruno@opsboard.dev` — senha de dev `opsboard123`.
 
 ## Escopo do MVP
 1. Login e dois perfis (operador e supervisor).
@@ -69,3 +72,8 @@ Monorepo com npm workspaces (`apps/*`).
 - **Mesma origem para front e API**: o web chama sempre `/api/...`. No Docker, o nginx repassa para `api:3000`; no `npm run dev`, o proxy do Vite faz o mesmo. Por isso não há CORS.
 - **Build context na raiz** nos Dockerfiles, para usar o `package-lock.json` único do workspace.
 - **`.gitattributes` com `eol=lf`**: evita CRLF em arquivos que rodam dentro de containers Linux.
+- **Prisma 7.10.1 fixado**: o `latest` do npm apontava para um release candidate da 8. Config em `apps/api/prisma.config.ts` (o Prisma 7 não lê `.env` sozinho; carregamos o `.env` da raiz com dotenv).
+- **Client gerado em `apps/api/src/generated/prisma`** (fora do git). `prebuild` roda `prisma generate`, então `npm run build` e o Docker sempre geram antes de compilar.
+- **Seed com `tsx`**: o client gerado importa arquivos com extensão `.js`, que o `ts-node` não resolve para `.ts`.
+- **IDs UUID**, `assigneeId` opcional (ordem pode nascer sem responsável), eventos com `onDelete: Cascade`.
+- **Migrations rodam do host** (`npm run db:migrate`) contra o Postgres exposto na 5432; a imagem da API não carrega o CLI do Prisma.

@@ -1,0 +1,86 @@
+// Prisma 7: a URL do banco fica no prisma.config.ts, não aqui.
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OPERATOR
+  SUPERVISOR
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum WorkOrderStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum WorkOrderEventType {
+  CREATED
+  STATUS_CHANGED
+  UPDATED
+  ASSIGNED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  assignedWorkOrders WorkOrder[]      @relation("WorkOrderAssignee")
+  createdWorkOrders  WorkOrder[]      @relation("WorkOrderCreator")
+  events             WorkOrderEvent[]
+}
+
+model WorkOrder {
+  id          String            @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  priority    WorkOrderPriority
+  status      WorkOrderStatus   @default(OPEN)
+  assigneeId  String?           @db.Uuid
+  createdById String            @db.Uuid
+  dueDate     DateTime
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  assignee  User?            @relation("WorkOrderAssignee", fields: [assigneeId], references: [id])
+  createdBy User             @relation("WorkOrderCreator", fields: [createdById], references: [id])
+  events    WorkOrderEvent[]
+
+  @@index([status])
+  @@index([dueDate])
+  @@index([assigneeId])
+}
+
+model WorkOrderEvent {
+  id          String             @id @default(uuid()) @db.Uuid
+  workOrderId String             @db.Uuid
+  actorId     String             @db.Uuid
+  type        WorkOrderEventType
+  fromStatus  WorkOrderStatus?
+  toStatus    WorkOrderStatus?
+  payload     Json
+  createdAt   DateTime           @default(now())
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  actor     User      @relation(fields: [actorId], references: [id])
+
+  @@index([workOrderId, createdAt])
+}
