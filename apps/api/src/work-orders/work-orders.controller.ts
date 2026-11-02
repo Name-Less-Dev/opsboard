@@ -10,12 +10,23 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../generated/prisma/enums';
 import type { PublicUser } from '../users/users.service';
+import { ApiErrors } from './api-errors.decorator';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
+import { WorkOrderPageResponseDto, WorkOrderResponseDto } from './dto/work-order-response.dto';
 import { UpdateAssigneeDto } from './dto/update-assignee.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
@@ -25,11 +36,20 @@ import {
   WorkOrdersService,
 } from './work-orders.service';
 
+@ApiTags('work-orders')
+@ApiBearerAuth()
+@ApiErrors(401)
 @Controller('work-orders')
 export class WorkOrdersController {
   constructor(private readonly workOrders: WorkOrdersService) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Cria uma ordem',
+    description: 'Operador vira o responsável; enviar outro responsável retorna 403.',
+  })
+  @ApiCreatedResponse({ type: WorkOrderResponseDto })
+  @ApiErrors(400, 403)
   create(
     @CurrentUser() actor: PublicUser,
     @Body() dto: CreateWorkOrderDto,
@@ -38,16 +58,31 @@ export class WorkOrdersController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Lista as ordens, das mais recentes para as mais antigas' })
+  @ApiOkResponse({ type: WorkOrderPageResponseDto })
+  @ApiErrors(400)
   findPage(@Query() query: ListWorkOrdersDto): Promise<WorkOrderPage> {
     return this.workOrders.findPage(query);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Mostra uma ordem' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: WorkOrderResponseDto })
+  @ApiErrors(400, 404)
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<WorkOrderResponse> {
     return this.workOrders.findOne(id);
   }
 
   @Patch(':id')
+  @ApiOperation({
+    summary: 'Edita título, descrição, prioridade e prazo',
+    description:
+      'Supervisor edita qualquer ordem ativa. Operador, só título e descrição das ordens em que é o responsável.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: WorkOrderResponseDto })
+  @ApiErrors(400, 403, 404, 409)
   update(
     @CurrentUser() actor: PublicUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -58,6 +93,14 @@ export class WorkOrdersController {
 
   // Sem @Roles: responsável e supervisor usam o mesmo endpoint, e quem decide é a política.
   @Patch(':id/status')
+  @ApiOperation({
+    summary: 'Muda o status da ordem',
+    description:
+      'OPEN → IN_PROGRESS e IN_PROGRESS → DONE: responsável ou supervisor. OPEN/IN_PROGRESS → CANCELLED: só supervisor.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: WorkOrderResponseDto })
+  @ApiErrors(400, 403, 404, 409)
   changeStatus(
     @CurrentUser() actor: PublicUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -67,6 +110,10 @@ export class WorkOrdersController {
   }
 
   @Patch(':id/assignee')
+  @ApiOperation({ summary: 'Define ou remove o responsável (somente supervisor)' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: WorkOrderResponseDto })
+  @ApiErrors(400, 403, 404, 409)
   @Roles(Role.SUPERVISOR)
   assign(
     @CurrentUser() actor: PublicUser,
@@ -77,6 +124,10 @@ export class WorkOrdersController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Exclui a ordem e seus eventos (somente supervisor)' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiNoContentResponse({ description: 'Ordem excluída' })
+  @ApiErrors(400, 403, 404)
   @Roles(Role.SUPERVISOR)
   @HttpCode(204)
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
