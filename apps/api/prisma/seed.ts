@@ -31,7 +31,7 @@ function daysFromNow(days: number): Date {
 
 type SeedOrder = {
   title: string;
-  description: string;
+  description: string | null;
   priority: WorkOrderPriority;
   status: WorkOrderStatus;
   assignee: 'ana' | 'bruno' | null;
@@ -61,7 +61,7 @@ const orders: SeedOrder[] = [
     priority: 'LOW',
     status: 'OPEN',
     assignee: null,
-    dueInDays: 7,
+    dueInDays: -1,
   },
   {
     title: 'Lâmpadas queimadas no estacionamento',
@@ -105,7 +105,7 @@ const orders: SeedOrder[] = [
   },
   {
     title: 'Pintura da recepção',
-    description: 'Marcas na parede atrás do balcão.',
+    description: null,
     priority: 'LOW',
     status: 'OPEN',
     assignee: 'ana',
@@ -145,9 +145,47 @@ async function main(): Promise<void> {
   });
   const operators = { ana, bruno };
 
-  for (const order of orders) {
+  for (const [index, order] of orders.entries()) {
     const assigneeId = order.assignee ? operators[order.assignee].id : null;
-    const workOrder = await prisma.workOrder.create({
+    const dueDate = daysFromNow(order.dueInDays);
+    // Cronologia coerente: toda ordem nasce antes do próprio prazo e das mudanças de status.
+    const createdAt = daysFromNow(-(orders.length - index) - 5);
+    const startedAt = new Date(createdAt.getTime() + DAY_MS);
+    const finishedAt = new Date(createdAt.getTime() + 2 * DAY_MS);
+    const worker = assigneeId ?? supervisor.id;
+
+    const changes: {
+      actorId: string;
+      fromStatus: WorkOrderStatus;
+      toStatus: WorkOrderStatus;
+      createdAt: Date;
+    }[] = [];
+    if (order.status === 'IN_PROGRESS' || order.status === 'DONE') {
+      changes.push({
+        actorId: worker,
+        fromStatus: 'OPEN',
+        toStatus: 'IN_PROGRESS',
+        createdAt: startedAt,
+      });
+    }
+    if (order.status === 'DONE') {
+      changes.push({
+        actorId: worker,
+        fromStatus: 'IN_PROGRESS',
+        toStatus: 'DONE',
+        createdAt: finishedAt,
+      });
+    }
+    if (order.status === 'CANCELLED') {
+      changes.push({
+        actorId: supervisor.id,
+        fromStatus: 'OPEN',
+        toStatus: 'CANCELLED',
+        createdAt: startedAt,
+      });
+    }
+
+    await prisma.workOrder.create({
       data: {
         title: order.title,
         description: order.description,
@@ -155,56 +193,34 @@ async function main(): Promise<void> {
         status: order.status,
         assigneeId,
         createdById: supervisor.id,
-        dueDate: daysFromNow(order.dueInDays),
+        dueDate,
+        createdAt,
+        updatedAt: changes.at(-1)?.createdAt ?? createdAt,
+        events: {
+          create: [
+            {
+              actorId: supervisor.id,
+              type: 'CREATED',
+              toStatus: 'OPEN',
+              createdAt,
+              // Mesmo formato que a API grava ao criar uma ordem.
+              payload: {
+                title: order.title,
+                description: order.description,
+                priority: order.priority,
+                dueDate: dueDate.toISOString(),
+                assigneeId,
+              },
+            },
+            ...changes.map((change) => ({
+              ...change,
+              type: 'STATUS_CHANGED' as const,
+              payload: {},
+            })),
+          ],
+        },
       },
     });
-
-    // Histórico coerente com o estado final da ordem.
-    await prisma.workOrderEvent.create({
-      data: {
-        workOrderId: workOrder.id,
-        actorId: supervisor.id,
-        type: 'CREATED',
-        toStatus: 'OPEN',
-        payload: { title: order.title },
-      },
-    });
-    if (order.status === 'IN_PROGRESS' || order.status === 'DONE') {
-      await prisma.workOrderEvent.create({
-        data: {
-          workOrderId: workOrder.id,
-          actorId: assigneeId ?? supervisor.id,
-          type: 'STATUS_CHANGED',
-          fromStatus: 'OPEN',
-          toStatus: 'IN_PROGRESS',
-          payload: {},
-        },
-      });
-    }
-    if (order.status === 'DONE') {
-      await prisma.workOrderEvent.create({
-        data: {
-          workOrderId: workOrder.id,
-          actorId: assigneeId ?? supervisor.id,
-          type: 'STATUS_CHANGED',
-          fromStatus: 'IN_PROGRESS',
-          toStatus: 'DONE',
-          payload: {},
-        },
-      });
-    }
-    if (order.status === 'CANCELLED') {
-      await prisma.workOrderEvent.create({
-        data: {
-          workOrderId: workOrder.id,
-          actorId: supervisor.id,
-          type: 'STATUS_CHANGED',
-          fromStatus: 'OPEN',
-          toStatus: 'CANCELLED',
-          payload: {},
-        },
-      });
-    }
   }
 
   console.log(`Seed concluído: 3 usuários, ${orders.length} ordens de serviço.`);
