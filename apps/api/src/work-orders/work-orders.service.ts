@@ -10,8 +10,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
-import { type Actor, canCreate, canEditFields, type EditableField } from './work-order.policy';
+import {
+  type Actor,
+  canCreate,
+  canEditFields,
+  canTransition,
+  type EditableField,
+} from './work-order.policy';
 
 // Lista de permissão do formato único de resposta: do usuário só saem id e nome.
 const WORK_ORDER_SELECT = {
@@ -172,6 +179,30 @@ export class WorkOrdersService {
       await updateIfStatusUnchanged(tx, order, data);
       await tx.workOrderEvent.create({
         data: { workOrderId: id, actorId: actor.id, type: 'UPDATED', payload: changes },
+      });
+      return tx.workOrder.findUniqueOrThrow({ where: { id }, select: WORK_ORDER_SELECT });
+    });
+  }
+
+  async changeStatus(
+    actor: Actor,
+    id: string,
+    { status: to }: UpdateStatusDto,
+  ): Promise<WorkOrderResponse> {
+    const order = await this.findOrderOrThrow(id);
+    assertAllowed(canTransition(actor, order, to));
+
+    return this.prisma.$transaction(async (tx) => {
+      await updateIfStatusUnchanged(tx, order, { status: to });
+      await tx.workOrderEvent.create({
+        data: {
+          workOrderId: id,
+          actorId: actor.id,
+          type: 'STATUS_CHANGED',
+          fromStatus: order.status,
+          toStatus: to,
+          payload: {},
+        },
       });
       return tx.workOrder.findUniqueOrThrow({ where: { id }, select: WORK_ORDER_SELECT });
     });

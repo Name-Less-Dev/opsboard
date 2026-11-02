@@ -3,6 +3,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { PublicUser } from '../users/users.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
   type WorkOrderPage,
@@ -39,5 +40,15 @@ export class WorkOrdersController {
     @Body() dto: UpdateWorkOrderDto,
   ): Promise<WorkOrderResponse> {
     return this.workOrders.update(actor, id, dto);
+  }
+
+  // Sem @Roles: responsável e supervisor usam o mesmo endpoint, e quem decide é a política.
+  @Patch(':id/status')
+  changeStatus(
+    @CurrentUser() actor: PublicUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateStatusDto,
+  ): Promise<WorkOrderResponse> {
+    return this.workOrders.changeStatus(actor, id, dto);
   }
 }
