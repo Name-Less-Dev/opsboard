@@ -72,6 +72,42 @@ Monorepo com npm workspaces (`apps/*`).
 6. Histórico de eventos de cada ordem, em tabela própria.
 7. Importar e exportar CSV.
 
+## Regras de negócio
+
+Fonte da verdade do fluxo de ordens de serviço.
+
+Estados: `OPEN`, `IN_PROGRESS`, `DONE`, `CANCELLED`. `DONE` e `CANCELLED` são finais.
+
+Transições permitidas:
+
+- `OPEN` → `IN_PROGRESS`: o responsável da ordem ou um `SUPERVISOR`.
+- `IN_PROGRESS` → `DONE`: o responsável da ordem ou um `SUPERVISOR`.
+- `OPEN` → `CANCELLED` e `IN_PROGRESS` → `CANCELLED`: somente `SUPERVISOR`.
+- Qualquer outra combinação é inválida.
+
+Permissões por ação:
+
+- Listar e ver detalhe: qualquer usuário autenticado vê todas as ordens.
+- Criar: qualquer autenticado. Se for `OPERATOR`, o responsável é forçado a ser ele mesmo (enviar outro responsável retorna 403). `SUPERVISOR` escolhe qualquer responsável, ou nenhum.
+- Editar título e descrição: `SUPERVISOR` em qualquer ordem ativa; `OPERATOR` só nas ordens em que é o responsável, e só enquanto ativas.
+- Editar prioridade e prazo: somente `SUPERVISOR`, em ordem ativa.
+- Atribuir responsável: somente `SUPERVISOR`, em ordem ativa.
+- Excluir: somente `SUPERVISOR`.
+- Ordem em estado final não pode ser editada nem ter responsável alterado por ninguém (409).
+
+Códigos HTTP: 404 ordem inexistente; 409 transição fora do grafo ou ordem em estado final; 403 ação válida no fluxo, mas sem permissão para este usuário; 400 validação de payload.
+
+Casos de borda definidos:
+
+- O fluxo vem antes da permissão: ordem final ou transição fora do grafo dá 409 mesmo para quem não teria permissão. A exceção são as rotas com `@Roles` (`DELETE` e atribuição), em que operador recebe 403 antes de a ordem ser consultada.
+- Na criação, `priority` e `dueDate` são obrigatórios. Operador que envia `assigneeId` nulo ou o próprio id vira o responsável; qualquer outro valor dá 403, mesmo se o usuário não existir. Supervisor com responsável inexistente recebe 400.
+- A criação grava só `CREATED`, com o responsável no payload.
+- Na edição, a permissão olha os campos enviados, não se mudaram: operador enviando `priority` recebe 403 na requisição inteira, sem aplicação parcial. Corpo vazio dá 400. Valores iguais aos atuais dão 200, sem evento.
+- `description: null` limpa a descrição; título, prioridade e prazo não aceitam `null`. O prazo pode estar no passado na edição, mas não na criação.
+- Título e descrição passam por `trim` antes da validação. O prazo exige data e hora completas com fuso (ISO 8601). `:id` que não é UUID dá 400.
+- Atribuir o responsável atual dá 200, sem evento. Supervisor pode tirar o responsável de ordem em andamento.
+- Supervisor pode excluir ordem em qualquer estado; os eventos são apagados junto, sem registro da exclusão.
+
 ## Decisões
 
 - **TypeScript 5.9 nos dois apps** (o template do Vite trazia o TS 7): Nest, ts-jest e typescript-eslint dependem da API JS do compilador, e uma versão única simplifica o lint compartilhado.
@@ -100,3 +136,5 @@ Monorepo com npm workspaces (`apps/*`).
 - **401 no cliente HTTP só derruba a sessão se a requisição levava token**: senão, senha errada no login causaria redirecionamento em vez de mensagem. A saída para `/login` passa pelo estado do `AuthProvider` e pelo `ProtectedRoute`, que guarda a página de origem.
 - **Testes de integração da API sem banco**: `AppModule` real com um dublê do Prisma que respeita `select` (`test/test-app.ts`). Sem rota real com `@Roles` ainda, o 403 é testado com um controller que só existe no teste.
 - **Conhecido e fora do escopo do Dia 2**: sem limite de tentativas de login; e-mail é comparado exatamente como digitado (maiúsculas não são normalizadas).
+- **Rota inexistente sem token responde 404**: os guards do Nest só rodam em rotas que existem, e nenhum dado fica exposto. Decisão aceita pelo dono no Dia 2.
+- **`/docs` é público**: o botão "Authorize" do Swagger depende disso; as rotas documentadas continuam protegidas.
