@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import type { PublicUser } from '../users/users.service';
 import { AuthService, type LoginResult } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 
@@ -18,7 +18,7 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@Req() request: Request & { user: PublicUser }): PublicUser {
-    return request.user;
+  me(@CurrentUser() user: PublicUser): PublicUser {
+    return user;
   }
 }
