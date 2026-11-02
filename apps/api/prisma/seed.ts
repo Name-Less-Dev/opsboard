@@ -6,6 +6,11 @@ import { PrismaClient, WorkOrderPriority, WorkOrderStatus } from '../src/generat
 
 config({ path: path.resolve(__dirname, '../../../.env') });
 
+// Senhas conhecidas e exclusão de todos os dados: isto nunca deve rodar em produção.
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('O seed é só para desenvolvimento e não roda com NODE_ENV=production');
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error('DATABASE_URL não definida');
@@ -15,8 +20,9 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: databaseUrl }),
 });
 
-// Senha única de desenvolvimento para todos os usuários do seed.
+// Credencial de demonstração, documentada no README e gravada só como hash.
 const DEV_PASSWORD = 'opsboard123';
+const BCRYPT_COST = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function daysFromNow(days: number): Date {
@@ -121,7 +127,7 @@ async function main(): Promise<void> {
   await prisma.workOrder.deleteMany();
   await prisma.user.deleteMany();
 
-  const passwordHash = await hash(DEV_PASSWORD, 10);
+  const passwordHash = await hash(DEV_PASSWORD, BCRYPT_COST);
 
   const supervisor = await prisma.user.create({
     data: {
