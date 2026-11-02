@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { config } from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { hash } from 'bcryptjs';
+import { hash } from 'bcrypt';
 import { PrismaClient, WorkOrderPriority, WorkOrderStatus } from '../src/generated/prisma/client';
 
 config({ path: path.resolve(__dirname, '../../../.env') });
