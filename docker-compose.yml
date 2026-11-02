@@ -39,6 +39,9 @@ services:
       target: runtime
     environment:
       PORT: 3000
+      # Sem valor padrão de propósito: melhor falhar do que subir com um segredo conhecido.
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (veja .env.example)}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       DATABASE_URL: *database-url
     ports:
       - '3000:3000'

@@ -1,5 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_PIPE } from '@nestjs/core';
+import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -10,6 +12,14 @@ import { PrismaModule } from './prisma/prisma.module';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     PrismaModule,
     HealthModule,
+    AuthModule,
+  ],
+  providers: [
+    // Registrado como provider (e não em main.ts) para valer também nos testes de integração.
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    },
   ],
 })
 export class AppModule {}
