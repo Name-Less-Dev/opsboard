@@ -28,17 +28,17 @@ em entrevista tudo o que estiver aqui.
 | Front       | React 19 + TypeScript + Vite 8 (`apps/web`)                         |
 | API         | NestJS 11 + TypeScript (`apps/api`) — plano B: Fastify/Express      |
 | Banco       | PostgreSQL 17 + Prisma 7.10.1 (driver adapter `@prisma/adapter-pg`) |
-| Auth        | JWT, perfis `OPERATOR` e `SUPERVISOR`                               |
+| Auth        | JWT via Passport, bcrypt, perfis `OPERATOR` e `SUPERVISOR`          |
 | Infra local | Docker Compose (`web`, `api`, `db`)                                 |
 | Testes      | Jest (api), Vitest (web), Playwright (e2e)                          |
 | CI          | GitHub Actions                                                      |
-| Docs da API | OpenAPI/Swagger                                                     |
+| Docs da API | OpenAPI/Swagger em `/docs` (só na porta da API, `:3000`)            |
 
 ## Estrutura
 
 ```
-apps/api   # NestJS: health, prisma (PrismaService global); próximos: auth, users, work-orders, events
-apps/web   # React: pages, lib (cliente HTTP); próximos: components, features
+apps/api   # NestJS: health, prisma (PrismaService global), users, auth; próximos: work-orders, events
+apps/web   # React: pages, components, features/auth, lib (cliente HTTP e sessão); próximas: features de ordens
 ```
 
 Monorepo com npm workspaces (`apps/*`).
@@ -50,8 +50,9 @@ Monorepo com npm workspaces (`apps/*`).
 | `npm install`               | Instala as dependências de todos os workspaces (um único lockfile na raiz) |
 | `npm run dev`               | Sobe API (:3000, watch) e web (:5173) juntos via `concurrently`            |
 | `npm run build`             | Build de todos os apps                                                     |
-| `npm run test`              | Testes de todos os apps                                                    |
-| `npm run lint`              | Lint de todos os apps                                                      |
+| `npm run test`              | Jest na API (unitários + integração sem banco) e Vitest no web             |
+| `npm run lint`              | ESLint (config única na raiz) + `prettier --check` no monorepo             |
+| `npm run format`            | Formata tudo com Prettier                                                  |
 | `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api)   |
 | `docker compose down`       | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga)           |
 | `npm run db:migrate`        | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env`           |
@@ -89,3 +90,13 @@ Monorepo com npm workspaces (`apps/*`).
 - **Jest com `moduleNameMapper` para `.js`**: o client gerado importa `./x.js`; o mapper remove a extensão para o ts-jest achar o `.ts`.
 - **Teste e2e sem banco**: `overrideProvider(PrismaService)` troca o Prisma por um dublê.
 - **ESLint e Prettier únicos na raiz** (`eslint.config.mjs`, `.prettierrc`): typescript-eslint com regras type-checked, `no-explicit-any` como erro (o template do Nest desligava), hooks/refresh do React só no web. Prettier roda separado; `eslint-config-prettier` só desliga regras de estilo conflitantes.
+- **Pacotes do Nest na major 11**: `@nestjs/swagger` mais recente exige o Nest 12, e atualizar o framework não fez parte do Dia 2.
+- **Protegido por padrão**: `JwtAuthGuard` e `RolesGuard` são globais (`APP_GUARD`, nessa ordem: 401 antes de 403); rota aberta precisa de `@Public()`. `ValidationPipe` também é provider (`APP_PIPE`), para valer nos testes de integração.
+- **Token só com `sub`**: o `JwtStrategy` busca o usuário a cada requisição. Perfil alterado vale na hora e usuário removido perde o acesso, ao custo de uma consulta por requisição.
+- **Login sem revelar e-mails**: mesma mensagem para senha errada e e-mail inexistente, e o e-mail inexistente também roda `bcrypt.compare` (contra um hash fictício) para igualar o tempo de resposta.
+- **`passwordHash` nunca sai**: `findById` usa `select` com lista de permissão; `findByEmail` traz o hash só para o login, que monta a resposta campo a campo.
+- **`JWT_SECRET` sem valor padrão no compose** (`:?`): melhor falhar do que subir com um segredo conhecido.
+- **Token em memória + localStorage**: sobrevive ao recarregar e não sofre CSRF, mas um XSS consegue lê-lo; a expiração de 1h limita o estrago.
+- **401 no cliente HTTP só derruba a sessão se a requisição levava token**: senão, senha errada no login causaria redirecionamento em vez de mensagem. A saída para `/login` passa pelo estado do `AuthProvider` e pelo `ProtectedRoute`, que guarda a página de origem.
+- **Testes de integração da API sem banco**: `AppModule` real com um dublê do Prisma que respeita `select` (`test/test-app.ts`). Sem rota real com `@Roles` ainda, o 403 é testado com um controller que só existe no teste.
+- **Conhecido e fora do escopo do Dia 2**: sem limite de tentativas de login; e-mail é comparado exatamente como digitado (maiúsculas não são normalizadas).

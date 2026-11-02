@@ -4,8 +4,8 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 (abertura, andamento, conclusão), com histórico de eventos de cada ordem.
 
 > **Status:** em construção. Hoje existem a infraestrutura (Docker, banco, migrations, seed),
-> o endpoint `GET /health` e a tela inicial que mostra o estado da API. Login, CRUD, painel e
-> CSV ainda não foram implementados.
+> o login com JWT e dois perfis, a proteção de rotas na API e no front, e a tela inicial que mostra
+> o estado da API. CRUD de ordens, painel e CSV ainda não foram implementados.
 
 ## Stack
 
@@ -13,7 +13,9 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 - **API:** NestJS 11 + TypeScript (`apps/api`)
 - **Banco:** PostgreSQL 17 + Prisma 7
 - **Infra local:** Docker Compose (`db`, `api`, `web`)
-- **Qualidade:** TypeScript estrito, ESLint + Prettier compartilhados, Jest na API
+- **Auth:** JWT (Bearer) com perfis `OPERATOR` e `SUPERVISOR`, senhas com bcrypt
+- **Docs da API:** OpenAPI/Swagger
+- **Qualidade:** TypeScript estrito, ESLint + Prettier compartilhados, Jest (API), Vitest (web)
 
 ## Pré-requisitos
 
@@ -31,10 +33,34 @@ docker compose up --build
 | -------- | ---------------------------- |
 | Web      | http://localhost:8080        |
 | API      | http://localhost:3000/health |
+| Swagger  | http://localhost:3000/docs   |
 | Postgres | `localhost:5432`             |
 
-A tela do web deve mostrar **"API ok"**. O web chama a API pelo caminho `/api`, que o nginx
-repassa para o serviço `api`.
+Entre com uma das [credenciais de demonstração](#credenciais-de-demonstração): a tela inicial deve
+mostrar **"API ok"**. O web chama a API pelo caminho `/api`, que o nginx repassa para o serviço `api`.
+
+### Variáveis de ambiente
+
+Ficam no `.env` da raiz (modelo em `.env.example`).
+
+| Variável                                            | Para quê                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciais do Postgres                                       |
+| `DATABASE_URL`                                      | Conexão usada pela API e pelo Prisma fora do Docker           |
+| `JWT_SECRET`                                        | Assina os tokens. **Obrigatória:** sem ela o compose não sobe |
+| `JWT_EXPIRES_IN`                                    | Validade do access token (padrão `1h`). Não há refresh token  |
+
+## Autenticação
+
+| Endpoint           | Acesso      | O que faz                                      |
+| ------------------ | ----------- | ---------------------------------------------- |
+| `POST /auth/login` | Público     | Recebe `{ email, password }` e devolve o token |
+| `GET /auth/me`     | Autenticado | Devolve o usuário do token                     |
+| `GET /health`      | Público     | Confere a API e a conexão com o banco          |
+
+Qualquer outra rota exige `Authorization: Bearer <token>` (401 sem token válido, 403 com perfil
+insuficiente). No Swagger, execute o login, cole o `accessToken` no botão **Authorize** e teste
+o `/auth/me`.
 
 ### Banco: migrations e seed
 
@@ -50,7 +76,12 @@ docker compose run --rm migrate npx prisma db seed
 O seed apaga e recria os dados de exemplo (pode ser rodado várias vezes): 1 supervisor,
 2 operadores e 10 ordens de serviço com status e prazos variados.
 
-| Usuário                   | Perfil     | Senha (dev)   |
+#### Credenciais de demonstração
+
+Só para desenvolvimento: o seed se recusa a rodar com `NODE_ENV=production`, e o banco guarda
+apenas o hash das senhas.
+
+| Usuário                   | Perfil     | Senha         |
 | ------------------------- | ---------- | ------------- |
 | `supervisor@opsboard.dev` | SUPERVISOR | `opsboard123` |
 | `ana@opsboard.dev`        | OPERATOR   | `opsboard123` |
