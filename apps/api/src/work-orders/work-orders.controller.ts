@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { PublicUser } from '../users/users.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
+import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
   type WorkOrderPage,
   type WorkOrderResponse,
@@ -29,5 +30,14 @@ export class WorkOrdersController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<WorkOrderResponse> {
     return this.workOrders.findOne(id);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() actor: PublicUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateWorkOrderDto,
+  ): Promise<WorkOrderResponse> {
+    return this.workOrders.update(actor, id, dto);
   }
 }

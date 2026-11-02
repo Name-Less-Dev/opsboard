@@ -5,12 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '../generated/prisma/client';
+import { Prisma, type WorkOrder } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
-import { type Actor, canCreate } from './work-order.policy';
+import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
+import { type Actor, canCreate, canEditFields, type EditableField } from './work-order.policy';
 
 // Lista de permissão do formato único de resposta: do usuário só saem id e nome.
 const WORK_ORDER_SELECT = {
@@ -47,6 +48,24 @@ function assertAllowed(decision: { allowed: true } | Denied): void {
       throw new ConflictException('Transição de status inválida');
     case 'ORDER_FINAL':
       throw new ConflictException('Ordem em estado final não pode ser alterada');
+  }
+}
+
+const EDITABLE_FIELDS: readonly EditableField[] = ['title', 'description', 'priority', 'dueDate'];
+
+// Controle de corrida: a condição inclui o status lido antes. Se outra requisição mudou o status
+// nesse intervalo, nenhuma linha é afetada e o erro desfaz a transação inteira (409).
+async function updateIfStatusUnchanged(
+  tx: Prisma.TransactionClient,
+  order: Pick<WorkOrder, 'id' | 'status'>,
+  data: Prisma.WorkOrderUpdateManyMutationInput | Prisma.WorkOrderUncheckedUpdateManyInput,
+): Promise<void> {
+  const { count } = await tx.workOrder.updateMany({
+    where: { id: order.id, status: order.status },
+    data,
+  });
+  if (count === 0) {
+    throw new ConflictException('A ordem foi alterada por outra requisição; tente novamente');
   }
 }
 
@@ -109,6 +128,57 @@ export class WorkOrdersService {
       where: { id },
       select: WORK_ORDER_SELECT,
     });
+    if (!order) {
+      throw new NotFoundException('Ordem de serviço não encontrada');
+    }
+    return order;
+  }
+
+  async update(actor: Actor, id: string, dto: UpdateWorkOrderDto): Promise<WorkOrderResponse> {
+    const fields = EDITABLE_FIELDS.filter((field) => dto[field] !== undefined);
+    if (fields.length === 0) {
+      throw new BadRequestException('Informe ao menos um campo para editar');
+    }
+
+    const order = await this.findOrderOrThrow(id);
+    assertAllowed(canEditFields(actor, order, fields));
+
+    const data: Prisma.WorkOrderUpdateManyMutationInput = {};
+    const changes: Record<string, { from: string | null; to: string | null }> = {};
+    if (dto.title !== undefined && dto.title !== order.title) {
+      data.title = dto.title;
+      changes.title = { from: order.title, to: dto.title };
+    }
+    if (dto.description !== undefined && dto.description !== order.description) {
+      data.description = dto.description;
+      changes.description = { from: order.description, to: dto.description };
+    }
+    if (dto.priority !== undefined && dto.priority !== order.priority) {
+      data.priority = dto.priority;
+      changes.priority = { from: order.priority, to: dto.priority };
+    }
+    if (dto.dueDate !== undefined) {
+      const dueDate = new Date(dto.dueDate);
+      if (dueDate.getTime() !== order.dueDate.getTime()) {
+        data.dueDate = dueDate;
+        changes.dueDate = { from: order.dueDate.toISOString(), to: dueDate.toISOString() };
+      }
+    }
+    if (Object.keys(changes).length === 0) {
+      return this.findOne(id);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await updateIfStatusUnchanged(tx, order, data);
+      await tx.workOrderEvent.create({
+        data: { workOrderId: id, actorId: actor.id, type: 'UPDATED', payload: changes },
+      });
+      return tx.workOrder.findUniqueOrThrow({ where: { id }, select: WORK_ORDER_SELECT });
+    });
+  }
+
+  private async findOrderOrThrow(id: string): Promise<WorkOrder> {
+    const order = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!order) {
       throw new NotFoundException('Ordem de serviço não encontrada');
     }
