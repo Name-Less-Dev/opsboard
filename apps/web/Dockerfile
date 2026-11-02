@@ -1,4 +1,5 @@
 # Build context é a raiz do monorepo, para usar o package-lock.json único.
+# O npm ci repete uma vez: já houve download interrompido por erro de rede (ECONNRESET).
 
 # --- build: gera os arquivos estáticos em apps/web/dist ---
 FROM node:24-alpine AS build
@@ -6,7 +7,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w @opsboard/web
+RUN npm ci -w @opsboard/web || (sleep 10 && npm ci -w @opsboard/web)
 COPY apps/web apps/web
 RUN npm run build -w @opsboard/web
 

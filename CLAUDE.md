@@ -147,3 +147,4 @@ Casos de borda definidos:
 - **`pageSize` padrão 20**, máximo 100. A lista desempata por `id` para a paginação não repetir nem pular ordens.
 - **Banco de teste separado** (`opsboard_test`, via `TEST_DATABASE_URL`): `test/global-setup.ts` cria o banco e aplica as migrations; `getTestDatabaseUrl()` recusa nomes que não terminem em `_test`, e a suíte confere `current_database()` antes do `TRUNCATE`. Roda com `maxWorkers: 1`, porque as suítes compartilham o banco.
 - **`--experimental-vm-modules` no `test:e2e`**: o client do Prisma 7 carrega o motor WASM com `import()` dinâmico, que a VM do Jest bloqueia sem a flag.
+- **`npm ci` repetido uma vez nos Dockerfiles**: o build falhou duas vezes com erro de rede (`ECONNRESET`, confirmado no log da segunda) e passou ao repetir. Repetir o comando cobre download interrompido no meio, e o que já foi baixado vem do cache.
