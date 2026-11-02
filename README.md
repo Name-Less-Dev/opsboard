@@ -4,8 +4,9 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 (abertura, andamento, conclusão), com histórico de eventos de cada ordem.
 
 > **Status:** em construção. Hoje existem a infraestrutura (Docker, banco, migrations, seed),
-> o login com JWT e dois perfis, a proteção de rotas na API e no front, e a tela inicial que mostra
-> o estado da API. CRUD de ordens, painel e CSV ainda não foram implementados.
+> o login com JWT e dois perfis, a proteção de rotas na API e no front, a tela inicial que mostra
+> o estado da API e a API de ordens de serviço com fluxo de status e registro de eventos. A tela de
+> ordens, filtros, painel, leitura do histórico e CSV ainda não foram implementados.
 
 ## Stack
 
@@ -43,12 +44,13 @@ mostrar **"API ok"**. O web chama a API pelo caminho `/api`, que o nginx repassa
 
 Ficam no `.env` da raiz (modelo em `.env.example`).
 
-| Variável                                            | Para quê                                                      |
-| --------------------------------------------------- | ------------------------------------------------------------- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciais do Postgres                                       |
-| `DATABASE_URL`                                      | Conexão usada pela API e pelo Prisma fora do Docker           |
-| `JWT_SECRET`                                        | Assina os tokens. **Obrigatória:** sem ela o compose não sobe |
-| `JWT_EXPIRES_IN`                                    | Validade do access token (padrão `1h`). Não há refresh token  |
+| Variável                                            | Para quê                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------ |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciais do Postgres                                            |
+| `DATABASE_URL`                                      | Conexão usada pela API e pelo Prisma fora do Docker                |
+| `JWT_SECRET`                                        | Assina os tokens. **Obrigatória:** sem ela o compose não sobe      |
+| `TEST_DATABASE_URL`                                 | Banco dos testes de integração; o nome precisa terminar em `_test` |
+| `JWT_EXPIRES_IN`                                    | Validade do access token (padrão `1h`). Não há refresh token       |
 
 ## Autenticação
 
@@ -61,6 +63,18 @@ Ficam no `.env` da raiz (modelo em `.env.example`).
 Qualquer outra rota exige `Authorization: Bearer <token>` (401 sem token válido, 403 com perfil
 insuficiente). No Swagger, execute o login, cole o `accessToken` no botão **Authorize** e teste
 o `/auth/me`.
+
+## Ordens de serviço
+
+| Endpoint                          | Acesso             | O que faz                                   |
+| --------------------------------- | ------------------ | ------------------------------------------- |
+| `POST /work-orders`               | Autenticado        | Cria uma ordem                              |
+| `GET /work-orders`                | Autenticado        | Lista paginada (`page`, `pageSize` até 100) |
+| `GET /work-orders/:id`            | Autenticado        | Mostra uma ordem                            |
+| `PATCH /work-orders/:id`          | Conforme as regras | Edita título, descrição, prioridade e prazo |
+| `PATCH /work-orders/:id/status`   | Conforme as regras | Muda o status                               |
+| `PATCH /work-orders/:id/assignee` | Supervisor         | Define ou remove o responsável              |
+| `DELETE /work-orders/:id`         | Supervisor         | Exclui a ordem e seus eventos               |
 
 ## Regras de negócio
 
@@ -97,6 +111,17 @@ Casos de borda definidos:
 - Título e descrição passam por `trim` antes da validação. O prazo exige data e hora completas com fuso (ISO 8601). `:id` que não é UUID dá 400.
 - Atribuir o responsável atual dá 200, sem evento. Supervisor pode tirar o responsável de ordem em andamento.
 - Supervisor pode excluir ordem em qualquer estado; os eventos são apagados junto, sem registro da exclusão.
+
+## Testes
+
+```bash
+docker compose up -d db
+npm test
+```
+
+Os testes de integração da API rodam em um banco separado (`opsboard_test`), criado sozinho no mesmo
+Postgres. Eles apagam as tabelas desse banco e se recusam a rodar em um banco cujo nome não termine
+em `_test`, então o banco de desenvolvimento não é tocado.
 
 ## Banco: migrations e seed
 

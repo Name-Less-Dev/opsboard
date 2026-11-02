@@ -37,7 +37,7 @@ em entrevista tudo o que estiver aqui.
 ## Estrutura
 
 ```
-apps/api   # NestJS: health, prisma (PrismaService global), users, auth; próximos: work-orders, events
+apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; leitura do histórico ainda não existe)
 apps/web   # React: pages, components, features/auth, lib (cliente HTTP e sessão); próximas: features de ordens
 ```
 
@@ -45,18 +45,18 @@ Monorepo com npm workspaces (`apps/*`).
 
 ## Comandos (raiz)
 
-| Comando                     | O que faz                                                                  |
-| --------------------------- | -------------------------------------------------------------------------- |
-| `npm install`               | Instala as dependências de todos os workspaces (um único lockfile na raiz) |
-| `npm run dev`               | Sobe API (:3000, watch) e web (:5173) juntos via `concurrently`            |
-| `npm run build`             | Build de todos os apps                                                     |
-| `npm run test`              | Jest na API (unitários + integração sem banco) e Vitest no web             |
-| `npm run lint`              | ESLint (config única na raiz) + `prettier --check` no monorepo             |
-| `npm run format`            | Formata tudo com Prettier                                                  |
-| `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api)   |
-| `docker compose down`       | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga)           |
-| `npm run db:migrate`        | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env`           |
-| `npm run db:seed`           | Recria os dados de exemplo (idempotente: apaga e insere de novo)           |
+| Comando                     | O que faz                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `npm install`               | Instala as dependências de todos os workspaces (um único lockfile na raiz)            |
+| `npm run dev`               | Sobe API (:3000, watch) e web (:5173) juntos via `concurrently`                       |
+| `npm run build`             | Build de todos os apps                                                                |
+| `npm run test`              | Jest na API e Vitest no web. A API exige o Postgres no ar (`docker compose up -d db`) |
+| `npm run lint`              | ESLint (config única na raiz) + `prettier --check` no monorepo                        |
+| `npm run format`            | Formata tudo com Prettier                                                             |
+| `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api)              |
+| `docker compose down`       | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga)                      |
+| `npm run db:migrate`        | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env`                      |
+| `npm run db:seed`           | Recria os dados de exemplo (idempotente: apaga e insere de novo)                      |
 
 > Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
 > No Docker as migrations rodam sozinhas e o seed é `docker compose run --rm migrate npx prisma db seed`. Pelo host: `cp .env.example .env`, `docker compose up -d db` e os scripts `db:*`.
@@ -138,3 +138,12 @@ Casos de borda definidos:
 - **Conhecido e fora do escopo do Dia 2**: sem limite de tentativas de login; e-mail é comparado exatamente como digitado (maiúsculas não são normalizadas).
 - **Rota inexistente sem token responde 404**: os guards do Nest só rodam em rotas que existem, e nenhum dado fica exposto. Decisão aceita pelo dono no Dia 2.
 - **`/docs` é público**: o botão "Authorize" do Swagger depende disso; as rotas documentadas continuam protegidas.
+- **Política em funções puras** (`work-orders/work-order.policy.ts`): o service só traduz a decisão em HTTP. O esperado da matriz de 64 casos é uma tabela escrita à mão, para o teste não repetir a lógica testada.
+- **`@Roles` só em `DELETE` e atribuição**: o endpoint de status é compartilhado, então quem decide é a política.
+- **Controle de corrida com `updateMany`**: status, edição e atribuição exigem na condição o status lido antes. Se outra requisição mudou nesse intervalo, nenhuma linha é afetada, o erro desfaz a transação e a resposta é 409.
+- **Mudança e evento na mesma `$transaction`**: testado com um trigger temporário que faz o `INSERT` do evento falhar de verdade no banco.
+- **`PrismaService` direto no service**: um repository seria uma camada a mais sem ganho por enquanto.
+- **`transform: true` no `ValidationPipe`**: necessário para o `trim` valer e para converter `page`/`pageSize`. Campos que não aceitam `null` usam `@ValidateIf`, porque `@IsOptional` também pula `null`.
+- **`pageSize` padrão 20**, máximo 100. A lista desempata por `id` para a paginação não repetir nem pular ordens.
+- **Banco de teste separado** (`opsboard_test`, via `TEST_DATABASE_URL`): `test/global-setup.ts` cria o banco e aplica as migrations; `getTestDatabaseUrl()` recusa nomes que não terminem em `_test`, e a suíte confere `current_database()` antes do `TRUNCATE`. Roda com `maxWorkers: 1`, porque as suítes compartilham o banco.
+- **`--experimental-vm-modules` no `test:e2e`**: o client do Prisma 7 carrega o motor WASM com `import()` dinâmico, que a VM do Jest bloqueia sem a flag.
