@@ -1,8 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../generated/prisma/enums';
 import type { PublicUser } from '../users/users.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
+import { UpdateAssigneeDto } from './dto/update-assignee.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
@@ -50,5 +64,22 @@ export class WorkOrdersController {
     @Body() dto: UpdateStatusDto,
   ): Promise<WorkOrderResponse> {
     return this.workOrders.changeStatus(actor, id, dto);
+  }
+
+  @Patch(':id/assignee')
+  @Roles(Role.SUPERVISOR)
+  assign(
+    @CurrentUser() actor: PublicUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAssigneeDto,
+  ): Promise<WorkOrderResponse> {
+    return this.workOrders.assign(actor, id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(Role.SUPERVISOR)
+  @HttpCode(204)
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.workOrders.remove(id);
   }
 }

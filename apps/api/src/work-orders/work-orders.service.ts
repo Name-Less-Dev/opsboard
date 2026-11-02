@@ -10,10 +10,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
+import { UpdateAssigneeDto } from './dto/update-assignee.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
   type Actor,
+  canAssign,
   canCreate,
   canEditFields,
   canTransition,
@@ -206,6 +208,43 @@ export class WorkOrdersService {
       });
       return tx.workOrder.findUniqueOrThrow({ where: { id }, select: WORK_ORDER_SELECT });
     });
+  }
+
+  async assign(
+    actor: Actor,
+    id: string,
+    { assigneeId }: UpdateAssigneeDto,
+  ): Promise<WorkOrderResponse> {
+    const order = await this.findOrderOrThrow(id);
+    assertAllowed(canAssign(actor, order));
+
+    if (assigneeId === order.assigneeId) {
+      return this.findOne(id);
+    }
+    if (assigneeId !== null) {
+      await this.assertUserExists(assigneeId);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await updateIfStatusUnchanged(tx, order, { assigneeId });
+      await tx.workOrderEvent.create({
+        data: {
+          workOrderId: id,
+          actorId: actor.id,
+          type: 'ASSIGNED',
+          payload: { from: order.assigneeId, to: assigneeId },
+        },
+      });
+      return tx.workOrder.findUniqueOrThrow({ where: { id }, select: WORK_ORDER_SELECT });
+    });
+  }
+
+  async remove(id: string): Promise<void> {
+    // Os eventos saem junto pelo onDelete: Cascade da chave estrangeira.
+    const { count } = await this.prisma.workOrder.deleteMany({ where: { id } });
+    if (count === 0) {
+      throw new NotFoundException('Ordem de serviço não encontrada');
+    }
   }
 
   private async findOrderOrThrow(id: string): Promise<WorkOrder> {
