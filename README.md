@@ -62,7 +62,7 @@ Qualquer outra rota exige `Authorization: Bearer <token>` (401 sem token válido
 insuficiente). No Swagger, execute o login, cole o `accessToken` no botão **Authorize** e teste
 o `/auth/me`.
 
-### Banco: migrations e seed
+## Banco: migrations e seed
 
 As migrations rodam sozinhas: o serviço `migrate` aplica as pendentes (`prisma migrate deploy`)
 e termina, e só então a API sobe. A ordem é `db` → `migrate` → `api` → `web`.
@@ -76,7 +76,7 @@ docker compose run --rm migrate npx prisma db seed
 O seed apaga e recria os dados de exemplo (pode ser rodado várias vezes): 1 supervisor,
 2 operadores e 10 ordens de serviço com status e prazos variados.
 
-#### Credenciais de demonstração
+### Credenciais de demonstração
 
 Só para desenvolvimento: o seed se recusa a rodar com `NODE_ENV=production`, e o banco guarda
 apenas o hash das senhas.
