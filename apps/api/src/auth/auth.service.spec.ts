@@ -1,5 +1,5 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { DomainException } from '../common/errors/domain.exception';
 import { Test } from '@nestjs/testing';
 import { hashSync } from 'bcrypt';
 import { UsersService } from '../users/users.service';
@@ -48,7 +48,7 @@ describe('AuthService', () => {
     users.findByEmail.mockResolvedValue(user);
 
     await expect(service.login(user.email, 'senha-errada')).rejects.toThrow(
-      new UnauthorizedException('Credenciais inválidas'),
+      new DomainException('UNAUTHORIZED', 'Credenciais inválidas'),
     );
     expect(jwt.signAsync).not.toHaveBeenCalled();
   });
@@ -57,7 +57,7 @@ describe('AuthService', () => {
     users.findByEmail.mockResolvedValue(null);
 
     await expect(service.login('ninguem@opsboard.dev', 'qualquer')).rejects.toThrow(
-      new UnauthorizedException('Credenciais inválidas'),
+      new DomainException('UNAUTHORIZED', 'Credenciais inválidas'),
     );
     expect(jwt.signAsync).not.toHaveBeenCalled();
   });

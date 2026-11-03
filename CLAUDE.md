@@ -205,3 +205,6 @@ Toda resposta de erro, de qualquer rota, tem este formato:
 - **Painel com transação interativa**: na forma em array do `$transaction`, o Prisma perde o tipo do `groupBy`.
 - **Busca escapa a barra invertida, `%` e `_`**: medido no banco, o `contains` do Prisma não escapa nada; sem isso, `_` achava tudo e uma busca por um caminho como `C:` seguido de barra e `temp` não achava nada.
 - **Prazo obrigatório mantido** (Dia 4): as regras sobre "sem prazo" e `nulls: 'last'` não têm efeito, porque `dueDate` é `NOT NULL`; o Prisma nem aceita `nulls` nesse campo.
+- **Um único filtro de erros** (`AllExceptionsFilter`, `APP_FILTER`): tudo que é lançado passa pelo `mapError`. O nosso código lança `DomainException` com `code` explícito; erros do framework (guards, pipes, rota inexistente) ganham o texto da tabela. Pipe e filtro são providers para valer nos testes.
+- **`requestId` resolvido em dois lugares, com a mesma função idempotente** (`ensureRequestId`): no middleware e no filtro. O body-parser roda antes do middleware, então o 400 de JSON malformado só ganha id pelo filtro.
+- **Log de erro só em 5xx**, com método, caminho, status, `requestId` e a stack (ou a `cause`, como a falha do banco no `/health`). Nunca corpo, headers ou token.

@@ -7,6 +7,7 @@ import { AppModule } from './../src/app.module';
 import type { LoginResult } from './../src/auth/auth.service';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { getTestDatabaseUrl } from './test-database';
+import { errorCode } from './error-code';
 
 type UserRef = { id: string; name: string };
 type OrderJson = {
@@ -101,13 +102,13 @@ describe('Ordens de serviço (integração com banco real)', () => {
     const order = await createOrder(ana);
     const path = `/work-orders/${order.id}`;
 
-    await api().get('/work-orders').expect(401);
-    await api().post('/work-orders', {}).expect(401);
-    await api().get(path).expect(401);
-    await api().patch(path, {}).expect(401);
-    await api().patch(`${path}/status`, {}).expect(401);
-    await api().patch(`${path}/assignee`, {}).expect(401);
-    await api().delete(path).expect(401);
+    await api().get('/work-orders').expect(401).expect(errorCode('UNAUTHORIZED'));
+    await api().post('/work-orders', {}).expect(401).expect(errorCode('UNAUTHORIZED'));
+    await api().get(path).expect(401).expect(errorCode('UNAUTHORIZED'));
+    await api().patch(path, {}).expect(401).expect(errorCode('UNAUTHORIZED'));
+    await api().patch(`${path}/status`, {}).expect(401).expect(errorCode('UNAUTHORIZED'));
+    await api().patch(`${path}/assignee`, {}).expect(401).expect(errorCode('UNAUTHORIZED'));
+    await api().delete(path).expect(401).expect(errorCode('UNAUTHORIZED'));
   });
 
   describe('POST /work-orders', () => {
@@ -144,10 +145,12 @@ describe('Ordens de serviço (integração com banco real)', () => {
       const body = { title: 'Trocar filtro', priority: 'LOW', dueDate: inDays(1) };
       await api(ana.token)
         .post('/work-orders', { ...body, assigneeId: bruno.id })
-        .expect(403);
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
       await api(ana.token)
         .post('/work-orders', { ...body, assigneeId: UNKNOWN_ID })
-        .expect(403);
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
       expect(await prisma.workOrder.count()).toBe(0);
     });
 
@@ -167,7 +170,8 @@ describe('Ordens de serviço (integração com banco real)', () => {
           dueDate: inDays(1),
           assigneeId: UNKNOWN_ID,
         })
-        .expect(400);
+        .expect(400)
+        .expect(errorCode('VALIDATION_ERROR'));
     });
 
     it('a resposta não expõe dados sensíveis de usuário', async () => {
@@ -193,7 +197,10 @@ describe('Ordens de serviço (integração com banco real)', () => {
       ['responsável que não é UUID', { ...VALID, assigneeId: 'abc' }],
       ['campo extra', { ...VALID, status: 'DONE' }],
     ])('400: %s', async (_name, body) => {
-      await api(supervisor.token).post('/work-orders', body).expect(400);
+      await api(supervisor.token)
+        .post('/work-orders', body)
+        .expect(400)
+        .expect(errorCode('VALIDATION_ERROR'));
       expect(await prisma.workOrder.count()).toBe(0);
     });
 
@@ -227,7 +234,10 @@ describe('Ordens de serviço (integração com banco real)', () => {
     it.each(['pageSize=101', 'pageSize=0', 'page=0', 'page=abc', 'filtro=x'])(
       '400: ?%s',
       async (query) => {
-        await api(ana.token).get(`/work-orders?${query}`).expect(400);
+        await api(ana.token)
+          .get(`/work-orders?${query}`)
+          .expect(400)
+          .expect(errorCode('VALIDATION_ERROR'));
       },
     );
   });
@@ -240,8 +250,19 @@ describe('Ordens de serviço (integração com banco real)', () => {
     });
 
     it('404 para ordem inexistente e 400 para id que não é UUID', async () => {
-      await api(ana.token).get(`/work-orders/${UNKNOWN_ID}`).expect(404);
-      await api(ana.token).get('/work-orders/abc').expect(400);
+      await api(ana.token)
+        .get(`/work-orders/${UNKNOWN_ID}`)
+        .expect(404)
+        .expect(errorCode('NOT_FOUND'));
+      await api(ana.token)
+        .get('/work-orders/abc')
+        .expect(400)
+        .expect(errorCode('VALIDATION_ERROR'))
+        .expect((response) =>
+          expect((response.body as { details: unknown }).details).toEqual([
+            { field: 'id', messages: ['id must be a UUID'] },
+          ]),
+        );
     });
   });
 
@@ -263,17 +284,17 @@ describe('Ordens de serviço (integração com banco real)', () => {
 
     it('operador não inicia nem conclui ordem de outro (403)', async () => {
       const order = await createOrder(ana);
-      await setStatus(bruno, order.id, 'IN_PROGRESS').expect(403);
+      await setStatus(bruno, order.id, 'IN_PROGRESS').expect(403).expect(errorCode('FORBIDDEN'));
 
       await setStatus(ana, order.id, 'IN_PROGRESS').expect(200);
-      await setStatus(bruno, order.id, 'DONE').expect(403);
+      await setStatus(bruno, order.id, 'DONE').expect(403).expect(errorCode('FORBIDDEN'));
 
       expect(await statusInDb(order.id)).toBe('IN_PROGRESS');
     });
 
     it('operador não inicia ordem sem responsável; supervisor sim', async () => {
       const order = await createOrder(supervisor);
-      await setStatus(ana, order.id, 'IN_PROGRESS').expect(403);
+      await setStatus(ana, order.id, 'IN_PROGRESS').expect(403).expect(errorCode('FORBIDDEN'));
       await setStatus(supervisor, order.id, 'IN_PROGRESS').expect(200);
     });
 
@@ -290,7 +311,7 @@ describe('Ordens de serviço (integração com banco real)', () => {
         const order = await createOrder(ana);
         if (from === 'IN_PROGRESS') await setStatus(ana, order.id, 'IN_PROGRESS').expect(200);
 
-        await setStatus(ana, order.id, 'CANCELLED').expect(403);
+        await setStatus(ana, order.id, 'CANCELLED').expect(403).expect(errorCode('FORBIDDEN'));
         expect(await statusInDb(order.id)).toBe(from);
 
         await setStatus(supervisor, order.id, 'CANCELLED').expect(200);
@@ -308,22 +329,28 @@ describe('Ordens de serviço (integração com banco real)', () => {
       const finished = await createOrder(ana);
       await setStatus(ana, finished.id, 'IN_PROGRESS').expect(200);
       await setStatus(ana, finished.id, 'DONE').expect(200);
-      await setStatus(supervisor, finished.id, 'IN_PROGRESS').expect(409);
+      await setStatus(supervisor, finished.id, 'IN_PROGRESS')
+        .expect(409)
+        .expect(errorCode('INVALID_TRANSITION'));
 
       const open = await createOrder(ana);
-      await setStatus(supervisor, open.id, 'DONE').expect(409);
-      await setStatus(supervisor, open.id, 'OPEN').expect(409);
+      await setStatus(supervisor, open.id, 'DONE')
+        .expect(409)
+        .expect(errorCode('INVALID_TRANSITION'));
+      await setStatus(supervisor, open.id, 'OPEN')
+        .expect(409)
+        .expect(errorCode('INVALID_TRANSITION'));
     });
 
     it('o fluxo vem antes da permissão: não responsável em transição inválida recebe 409', async () => {
       const order = await createOrder(ana);
-      await setStatus(bruno, order.id, 'DONE').expect(409);
+      await setStatus(bruno, order.id, 'DONE').expect(409).expect(errorCode('INVALID_TRANSITION'));
     });
 
     it('400 para status inválido e 404 para ordem inexistente', async () => {
       const order = await createOrder(ana);
-      await setStatus(ana, order.id, 'PAUSED').expect(400);
-      await setStatus(ana, UNKNOWN_ID, 'IN_PROGRESS').expect(404);
+      await setStatus(ana, order.id, 'PAUSED').expect(400).expect(errorCode('VALIDATION_ERROR'));
+      await setStatus(ana, UNKNOWN_ID, 'IN_PROGRESS').expect(404).expect(errorCode('NOT_FOUND'));
     });
 
     it('se a gravação do evento falhar, a mudança de status não persiste', async () => {
@@ -338,7 +365,9 @@ describe('Ordens de serviço (integração com banco real)', () => {
         FOR EACH ROW EXECUTE FUNCTION fail_event_insert()`);
 
       try {
-        await setStatus(ana, order.id, 'IN_PROGRESS').expect(500);
+        await setStatus(ana, order.id, 'IN_PROGRESS')
+          .expect(500)
+          .expect(errorCode('INTERNAL_ERROR'));
       } finally {
         await prisma.$executeRawUnsafe('DROP FUNCTION fail_event_insert CASCADE');
       }
@@ -361,7 +390,9 @@ describe('Ordens de serviço (integração com banco real)', () => {
         .mockImplementationOnce(((args: Parameters<typeof realFindUnique>[0]) =>
           args.where.id === order.id ? Promise.resolve(stale) : realFindUnique(args)) as never);
       try {
-        const response = await setStatus(ana, order.id, 'DONE').expect(409);
+        const response = await setStatus(ana, order.id, 'DONE')
+          .expect(409)
+          .expect(errorCode('CONCURRENT_UPDATE'));
         expect((response.body as { message: string }).message).toContain('outra requisição');
       } finally {
         read.mockRestore();
@@ -433,7 +464,10 @@ describe('Ordens de serviço (integração com banco real)', () => {
 
     it('operador não edita ordem de outro (403)', async () => {
       const order = await createOrder(ana);
-      await api(bruno.token).patch(`/work-orders/${order.id}`, { title: 'Invadido' }).expect(403);
+      await api(bruno.token)
+        .patch(`/work-orders/${order.id}`, { title: 'Invadido' })
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
     });
 
     it.each([
@@ -441,7 +475,10 @@ describe('Ordens de serviço (integração com banco real)', () => {
       ['prazo', { dueDate: inDays(9) }],
     ])('responsável operador não edita %s (403)', async (_name, body) => {
       const order = await createOrder(ana);
-      await api(ana.token).patch(`/work-orders/${order.id}`, body).expect(403);
+      await api(ana.token)
+        .patch(`/work-orders/${order.id}`, body)
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
     });
 
     it('sem aplicação parcial: título e prioridade juntos dão 403 e nada muda', async () => {
@@ -449,7 +486,8 @@ describe('Ordens de serviço (integração com banco real)', () => {
 
       await api(ana.token)
         .patch(`/work-orders/${order.id}`, { title: 'Alterado', priority: 'URGENT' })
-        .expect(403);
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
 
       const current = await prisma.workOrder.findUniqueOrThrow({ where: { id: order.id } });
       expect(current.title).toBe('Original');
@@ -459,7 +497,8 @@ describe('Ordens de serviço (integração com banco real)', () => {
       const order = await createOrder(ana);
       await api(ana.token)
         .patch(`/work-orders/${order.id}`, { priority: order.priority })
-        .expect(403);
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
     });
 
     it('supervisor edita todos os campos, e o prazo pode ficar no passado', async () => {
@@ -489,9 +528,18 @@ describe('Ordens de serviço (integração com banco real)', () => {
         await setStatus(supervisor, order.id, end).expect(200);
         const path = `/work-orders/${order.id}`;
 
-        await api(supervisor.token).patch(path, { title: 'Novo título' }).expect(409);
-        await api(ana.token).patch(path, { title: 'Novo título' }).expect(409);
-        await api(bruno.token).patch(path, { title: 'Novo título' }).expect(409);
+        await api(supervisor.token)
+          .patch(path, { title: 'Novo título' })
+          .expect(409)
+          .expect(errorCode('ORDER_FINALIZED'));
+        await api(ana.token)
+          .patch(path, { title: 'Novo título' })
+          .expect(409)
+          .expect(errorCode('ORDER_FINALIZED'));
+        await api(bruno.token)
+          .patch(path, { title: 'Novo título' })
+          .expect(409)
+          .expect(errorCode('ORDER_FINALIZED'));
       },
     );
 
@@ -505,13 +553,17 @@ describe('Ordens de serviço (integração com banco real)', () => {
       ['título curto', { title: 'ab' }],
     ])('400: %s', async (_name, body) => {
       const order = await createOrder(ana);
-      await api(supervisor.token).patch(`/work-orders/${order.id}`, body).expect(400);
+      await api(supervisor.token)
+        .patch(`/work-orders/${order.id}`, body)
+        .expect(400)
+        .expect(errorCode('VALIDATION_ERROR'));
     });
 
     it('404 para ordem inexistente', async () => {
       await api(supervisor.token)
         .patch(`/work-orders/${UNKNOWN_ID}`, { title: 'Novo' })
-        .expect(404);
+        .expect(404)
+        .expect(errorCode('NOT_FOUND'));
     });
   });
 
@@ -555,10 +607,12 @@ describe('Ordens de serviço (integração com banco real)', () => {
       const order = await createOrder(ana);
       await api(ana.token)
         .patch(`/work-orders/${order.id}/assignee`, { assigneeId: bruno.id })
-        .expect(403);
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
       await api(ana.token)
         .patch(`/work-orders/${UNKNOWN_ID}/assignee`, { assigneeId: bruno.id })
-        .expect(403);
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
     });
 
     it('409 em ordem final', async () => {
@@ -566,25 +620,41 @@ describe('Ordens de serviço (integração com banco real)', () => {
       await setStatus(supervisor, order.id, 'CANCELLED').expect(200);
       await api(supervisor.token)
         .patch(`/work-orders/${order.id}/assignee`, { assigneeId: bruno.id })
-        .expect(409);
+        .expect(409)
+        .expect(errorCode('ORDER_FINALIZED'));
     });
 
     it('400 para responsável inexistente, malformado ou ausente; 404 para ordem inexistente', async () => {
       const order = await createOrder(ana);
       const path = `/work-orders/${order.id}/assignee`;
-      await api(supervisor.token).patch(path, { assigneeId: UNKNOWN_ID }).expect(400);
-      await api(supervisor.token).patch(path, { assigneeId: 'abc' }).expect(400);
-      await api(supervisor.token).patch(path, {}).expect(400);
+      await api(supervisor.token)
+        .patch(path, { assigneeId: UNKNOWN_ID })
+        .expect(400)
+        .expect(errorCode('VALIDATION_ERROR'))
+        .expect((response) =>
+          expect((response.body as { details: unknown }).details).toEqual([
+            { field: 'assigneeId', messages: ['Responsável não encontrado'] },
+          ]),
+        );
+      await api(supervisor.token)
+        .patch(path, { assigneeId: 'abc' })
+        .expect(400)
+        .expect(errorCode('VALIDATION_ERROR'));
+      await api(supervisor.token).patch(path, {}).expect(400).expect(errorCode('VALIDATION_ERROR'));
       await api(supervisor.token)
         .patch(`/work-orders/${UNKNOWN_ID}/assignee`, { assigneeId: bruno.id })
-        .expect(404);
+        .expect(404)
+        .expect(errorCode('NOT_FOUND'));
     });
   });
 
   describe('DELETE /work-orders/:id', () => {
     it('operador recebe 403, mesmo sendo o responsável', async () => {
       const order = await createOrder(ana);
-      await api(ana.token).delete(`/work-orders/${order.id}`).expect(403);
+      await api(ana.token)
+        .delete(`/work-orders/${order.id}`)
+        .expect(403)
+        .expect(errorCode('FORBIDDEN'));
       expect(await prisma.workOrder.count()).toBe(1);
     });
 
@@ -603,7 +673,10 @@ describe('Ordens de serviço (integração com banco real)', () => {
     });
 
     it('404 para ordem inexistente', async () => {
-      await api(supervisor.token).delete(`/work-orders/${UNKNOWN_ID}`).expect(404);
+      await api(supervisor.token)
+        .delete(`/work-orders/${UNKNOWN_ID}`)
+        .expect(404)
+        .expect(errorCode('NOT_FOUND'));
     });
   });
 });

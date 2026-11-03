@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { DomainException } from '../common/errors/domain.exception';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hashSync } from 'bcrypt';
 import { PublicUser, UsersService } from '../users/users.service';
@@ -29,7 +30,7 @@ export class AuthService {
     const passwordMatches = await compare(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
 
     if (!user || !passwordMatches) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new DomainException('UNAUTHORIZED', 'Credenciais inválidas');
     }
 
     const payload: JwtPayload = { sub: user.id };

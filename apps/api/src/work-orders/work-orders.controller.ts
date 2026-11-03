@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -21,6 +10,7 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { parseIdPipe } from '../common/pipes/parse-id.pipe';
 import { Role } from '../generated/prisma/enums';
 import type { PublicUser } from '../users/users.service';
 import { ApiErrors } from './api-errors.decorator';
@@ -77,7 +67,7 @@ export class WorkOrdersController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: WorkOrderResponseDto })
   @ApiErrors(400, 404)
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<WorkOrderResponse> {
+  findOne(@Param('id', parseIdPipe()) id: string): Promise<WorkOrderResponse> {
     return this.workOrders.findOne(id);
   }
 
@@ -92,7 +82,7 @@ export class WorkOrdersController {
   @ApiErrors(400, 403, 404, 409)
   update(
     @CurrentUser() actor: PublicUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', parseIdPipe()) id: string,
     @Body() dto: UpdateWorkOrderDto,
   ): Promise<WorkOrderResponse> {
     return this.workOrders.update(actor, id, dto);
@@ -110,7 +100,7 @@ export class WorkOrdersController {
   @ApiErrors(400, 403, 404, 409)
   changeStatus(
     @CurrentUser() actor: PublicUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', parseIdPipe()) id: string,
     @Body() dto: UpdateStatusDto,
   ): Promise<WorkOrderResponse> {
     return this.workOrders.changeStatus(actor, id, dto);
@@ -124,7 +114,7 @@ export class WorkOrdersController {
   @Roles(Role.SUPERVISOR)
   assign(
     @CurrentUser() actor: PublicUser,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', parseIdPipe()) id: string,
     @Body() dto: UpdateAssigneeDto,
   ): Promise<WorkOrderResponse> {
     return this.workOrders.assign(actor, id, dto);
@@ -137,7 +127,7 @@ export class WorkOrdersController {
   @ApiErrors(400, 403, 404)
   @Roles(Role.SUPERVISOR)
   @HttpCode(204)
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  remove(@Param('id', parseIdPipe()) id: string): Promise<void> {
     return this.workOrders.remove(id);
   }
 }

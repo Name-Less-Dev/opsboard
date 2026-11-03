@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
+import { errorCode } from './error-code';
 
 // Sobe a aplicação inteira (módulos, rotas), mas troca o Prisma por um dublê:
 // este teste não depende de um Postgres rodando.
@@ -19,7 +20,8 @@ describe('GET /health (e2e)', () => {
       .useValue(prisma)
       .compile();
 
-    app = moduleFixture.createNestApplication();
+    // Sem logger: o 503 é esperado aqui e o log dele só polui a saída do teste.
+    app = moduleFixture.createNestApplication({ logger: false });
     await app.init();
   });
 
@@ -37,6 +39,9 @@ describe('GET /health (e2e)', () => {
 
   it('503 quando o banco falha', () => {
     prisma.$queryRaw.mockRejectedValue(new Error('down'));
-    return request(app.getHttpServer()).get('/health').expect(503);
+    return request(app.getHttpServer())
+      .get('/health')
+      .expect(503)
+      .expect(errorCode('SERVICE_UNAVAILABLE'));
   });
 });

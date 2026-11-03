@@ -1,11 +1,6 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Clock } from '../clock/clock';
+import { DomainException, validationError } from '../common/errors/domain.exception';
 import { Prisma, type WorkOrder } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -37,16 +32,16 @@ export type WorkOrderPage = {
 
 type Denied = { allowed: false; reason: 'INVALID_TRANSITION' | 'ORDER_FINAL' | 'FORBIDDEN' };
 
-// Traduz a decisão da política em HTTP: fluxo inválido é 409, falta de permissão é 403.
+// Traduz a decisão da política no código de erro: fluxo inválido é 409, falta de permissão é 403.
 function assertAllowed(decision: { allowed: true } | Denied): void {
   if (decision.allowed) return;
   switch (decision.reason) {
     case 'FORBIDDEN':
-      throw new ForbiddenException('Sem permissão para esta ação');
+      throw new DomainException('FORBIDDEN', 'Sem permissão para esta ação');
     case 'INVALID_TRANSITION':
-      throw new ConflictException('Transição de status inválida');
+      throw new DomainException('INVALID_TRANSITION', 'Transição de status inválida');
     case 'ORDER_FINAL':
-      throw new ConflictException('Ordem em estado final não pode ser alterada');
+      throw new DomainException('ORDER_FINALIZED', 'Ordem em estado final não pode ser alterada');
   }
 }
 
@@ -64,7 +59,10 @@ async function updateIfStatusUnchanged(
     data,
   });
   if (count === 0) {
-    throw new ConflictException('A ordem foi alterada por outra requisição; tente novamente');
+    throw new DomainException(
+      'CONCURRENT_UPDATE',
+      'A ordem foi alterada por outra requisição; tente novamente',
+    );
   }
 }
 
@@ -148,7 +146,7 @@ export class WorkOrdersService {
       select: WORK_ORDER_SELECT,
     });
     if (!order) {
-      throw new NotFoundException('Ordem de serviço não encontrada');
+      throw new DomainException('NOT_FOUND', 'Ordem de serviço não encontrada');
     }
     return order;
   }
@@ -156,7 +154,7 @@ export class WorkOrdersService {
   async update(actor: Actor, id: string, dto: UpdateWorkOrderDto): Promise<WorkOrderResponse> {
     const fields = EDITABLE_FIELDS.filter((field) => dto[field] !== undefined);
     if (fields.length === 0) {
-      throw new BadRequestException('Informe ao menos um campo para editar');
+      throw validationError([], 'Informe ao menos um campo para editar');
     }
 
     const order = await this.findOrderOrThrow(id);
@@ -253,21 +251,24 @@ export class WorkOrdersService {
     // Os eventos saem junto pelo onDelete: Cascade da chave estrangeira.
     const { count } = await this.prisma.workOrder.deleteMany({ where: { id } });
     if (count === 0) {
-      throw new NotFoundException('Ordem de serviço não encontrada');
+      throw new DomainException('NOT_FOUND', 'Ordem de serviço não encontrada');
     }
   }
 
   private async findOrderOrThrow(id: string): Promise<WorkOrder> {
     const order = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!order) {
-      throw new NotFoundException('Ordem de serviço não encontrada');
+      throw new DomainException('NOT_FOUND', 'Ordem de serviço não encontrada');
     }
     return order;
   }
 
   private async assertUserExists(userId: string): Promise<void> {
     if (!(await this.users.findById(userId))) {
-      throw new BadRequestException('Responsável não encontrado');
+      throw validationError(
+        [{ field: 'assigneeId', messages: ['Responsável não encontrado'] }],
+        'Responsável não encontrado',
+      );
     }
   }
 }

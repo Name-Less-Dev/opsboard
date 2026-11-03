@@ -9,6 +9,7 @@ import { Clock } from './../src/clock/clock';
 import type { Prisma } from './../src/generated/prisma/client';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { getTestDatabaseUrl } from './test-database';
+import { errorCode } from './error-code';
 
 type OrderJson = {
   id: string;
@@ -86,7 +87,8 @@ describe('Listagem e painel (integração com banco real)', () => {
     request(app.getHttpServer())
       .get(`/work-orders?${query}`)
       .set('Authorization', `Bearer ${ana.token}`)
-      .expect(400);
+      .expect(400)
+      .expect(errorCode('VALIDATION_ERROR'));
 
   async function summary(): Promise<SummaryJson> {
     const response = await request(app.getHttpServer())
@@ -395,7 +397,10 @@ describe('Listagem e painel (integração com banco real)', () => {
     });
 
     it('401 sem token', async () => {
-      await request(app.getHttpServer()).get('/work-orders').expect(401);
+      await request(app.getHttpServer())
+        .get('/work-orders')
+        .expect(401)
+        .expect(errorCode('UNAUTHORIZED'));
     });
   });
 
@@ -475,7 +480,10 @@ describe('Listagem e painel (integração com banco real)', () => {
     });
 
     it('401 sem token', async () => {
-      await request(app.getHttpServer()).get('/dashboard/summary').expect(401);
+      await request(app.getHttpServer())
+        .get('/dashboard/summary')
+        .expect(401)
+        .expect(errorCode('UNAUTHORIZED'));
     });
   });
 });

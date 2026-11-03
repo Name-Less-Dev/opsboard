@@ -7,8 +7,14 @@ export class DomainException extends HttpException {
   readonly code: DomainErrorCode;
   readonly details?: ValidationDetail[];
 
-  constructor(code: DomainErrorCode, message: string, details?: ValidationDetail[]) {
-    super(message, ERROR_STATUS[code]);
+  // `cause` é o erro original (ex.: falha do banco no /health): vai para o log, nunca para a resposta.
+  constructor(
+    code: DomainErrorCode,
+    message: string,
+    details?: ValidationDetail[],
+    cause?: unknown,
+  ) {
+    super(message, ERROR_STATUS[code], cause === undefined ? undefined : { cause });
     this.code = code;
     // details só faz sentido em VALIDATION_ERROR; nos outros códigos é ignorado.
     this.details = code === 'VALIDATION_ERROR' ? (details ?? []) : undefined;
