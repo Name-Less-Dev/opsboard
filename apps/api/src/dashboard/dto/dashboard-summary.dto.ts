@@ -4,21 +4,21 @@ import type { DashboardSummary } from '../dashboard.service';
 
 // Classes só para a documentação: o `implements` faz o compilador acusar se divergirem do service.
 class StatusCountsDto implements Record<keyof DashboardSummary['byStatus'], number> {
-  @ApiProperty()
+  @ApiProperty({ example: 5 })
   OPEN!: number;
 
-  @ApiProperty()
+  @ApiProperty({ example: 2 })
   IN_PROGRESS!: number;
 
-  @ApiProperty()
+  @ApiProperty({ example: 2 })
   DONE!: number;
 
-  @ApiProperty()
+  @ApiProperty({ example: 1 })
   CANCELLED!: number;
 }
 
 class OverdueDto {
-  @ApiProperty({ description: 'Total de ordens atrasadas' })
+  @ApiProperty({ example: 4, description: 'Total de ordens atrasadas' })
   count!: number;
 
   @ApiProperty({
@@ -35,6 +35,9 @@ export class DashboardSummaryDto implements DashboardSummary {
   @ApiProperty({ type: OverdueDto })
   overdue!: OverdueDto;
 
-  @ApiProperty({ description: 'Instante usado como "agora" no cálculo de atrasadas' })
+  @ApiProperty({
+    example: '2026-11-03T16:40:09.764Z',
+    description: 'Instante usado como "agora" no cálculo de atrasadas',
+  })
   generatedAt!: Date;
 }
