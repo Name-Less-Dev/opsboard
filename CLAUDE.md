@@ -119,6 +119,45 @@ Listagem e painel:
 - Em `status` e `priority`, espaços e valores repetidos são ignorados, assim como itens vazios (`OPEN,`). `q` passa por trim, é ignorado se vazio e dá 400 acima de 100 caracteres.
 - A prioridade ordena por gravidade (`LOW` < `MEDIUM` < `HIGH` < `URGENT`), que é a ordem de declaração do enum no Postgres.
 
+## Formato de erro
+
+Toda resposta de erro, de qualquer rota, tem este formato:
+
+```json
+{
+  "statusCode": 400,
+  "code": "VALIDATION_ERROR",
+  "message": "Dados inválidos",
+  "details": [
+    { "field": "title", "messages": ["title must be longer than or equal to 3 characters"] }
+  ],
+  "path": "/work-orders",
+  "timestamp": "2026-11-04T12:00:00.000Z",
+  "requestId": "0b6d2a4e-3f1c-4d9a-8e7b-5c2f1a0d9e8b"
+}
+```
+
+- `code` é estável (UPPER_SNAKE_CASE) e é o que o front usa; `message` é legível, em português, e pode mudar.
+- `details` só existe em `VALIDATION_ERROR` (sempre presente nele, mesmo vazio): uma entrada por campo, inclusive de query params e do `:id` da rota.
+- `requestId` também volta no header `x-request-id`. Se o cliente enviar um `x-request-id` válido (até 128 caracteres de letras, números, `.`, `_` e `-`), ele é reaproveitado.
+- Em 500, a resposta nunca traz stack trace, nome de tabela ou mensagem do Prisma: o detalhe vai para o log com o mesmo `requestId`.
+- O login continua com a mesma mensagem para senha errada e e-mail inexistente.
+
+| `code`                | Status | Quando                                                              |
+| --------------------- | ------ | ------------------------------------------------------------------- |
+| `VALIDATION_ERROR`    | 400    | Payload, query ou parâmetro de rota inválido; JSON malformado       |
+| `UNAUTHORIZED`        | 401    | Token ausente, inválido ou expirado; credenciais inválidas          |
+| `FORBIDDEN`           | 403    | Ação válida no fluxo, mas sem permissão para este usuário           |
+| `NOT_FOUND`           | 404    | Ordem, registro ou rota inexistente                                 |
+| `INVALID_TRANSITION`  | 409    | Transição de status fora do grafo                                   |
+| `ORDER_FINALIZED`     | 409    | Ordem em estado final não pode ser alterada                         |
+| `CONCURRENT_UPDATE`   | 409    | Outra requisição alterou a ordem entre a leitura e a gravação       |
+| `CONFLICT`            | 409    | Violação de unicidade ou de chave estrangeira no banco              |
+| `TOO_MANY_REQUESTS`   | 429    | Limite de tentativas de login excedido                              |
+| `HTTP_ERROR`          | 4xx    | Outro erro HTTP do framework (ex.: 405, 413), com o status original |
+| `INTERNAL_ERROR`      | 500    | Erro inesperado; detalhe só no log                                  |
+| `SERVICE_UNAVAILABLE` | 503    | `GET /health` com o banco fora do ar                                |
+
 ## Decisões
 
 - **TypeScript 5.9 nos dois apps** (o template do Vite trazia o TS 7): Nest, ts-jest e typescript-eslint dependem da API JS do compilador, e uma versão única simplifica o lint compartilhado.
