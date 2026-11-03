@@ -14,7 +14,7 @@ export default tseslint.config(
       '**/coverage/**',
       'apps/api/src/generated/**',
       // Gerado por npm run types:generate.
-      'apps/web/src/lib/api-schema.d.ts',
+      'apps/web/src/lib/api-types.ts',
     ],
   },
 
