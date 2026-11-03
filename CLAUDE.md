@@ -37,7 +37,7 @@ em entrevista tudo o que estiver aqui.
 ## Estrutura
 
 ```
-apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; leitura do histórico ainda não existe)
+apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; leitura do histórico ainda não existe), dashboard, clock
 apps/web   # React: pages, components, features/auth, lib (cliente HTTP e sessão); próximas: features de ordens
 ```
 
@@ -57,6 +57,7 @@ Monorepo com npm workspaces (`apps/*`).
 | `docker compose down`       | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga)                      |
 | `npm run db:migrate`        | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env`                      |
 | `npm run db:seed`           | Recria os dados de exemplo (idempotente: apaga e insere de novo)                      |
+| `npm run seed:large`        | Acrescenta 5.000 ordens `[volume]` (opcional; substitui só as próprias)               |
 
 > Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
 > No Docker as migrations rodam sozinhas e o seed é `docker compose run --rm migrate npx prisma db seed`. Pelo host: `cp .env.example .env`, `docker compose up -d db` e os scripts `db:*`.
@@ -159,3 +160,9 @@ Listagem e painel:
 - **`--experimental-vm-modules` no `test:e2e`**: o client do Prisma 7 carrega o motor WASM com `import()` dinâmico, que a VM do Jest bloqueia sem a flag.
 - **`npm ci` repetido uma vez nos Dockerfiles**: o build falhou duas vezes com erro de rede (`ECONNRESET`, confirmado no log da segunda) e passou ao repetir. Repetir o comando cobre download interrompido no meio, e o que já foi baixado vem do cache.
 - **Sem índice composto `(status, dueDate)`** (medido com `EXPLAIN ANALYZE` em 5.010 ordens, seed de volume): as 10 atrasadas mais antigas já usam o índice de `dueDate` e param no 10º item (0,23 ms, igual com ou sem o composto). A contagem de atrasadas cai de 1,06 ms (Bitmap Heap Scan, 124 buffers) para 0,33 ms (Index Only Scan, 12 buffers), mas 0,7 ms não paga o custo de mais um índice em toda escrita de status e prazo. Rever quando a contagem pesar de verdade.
+- **Filtro e ordenação em funções puras** (`work-orders/work-order-query.ts`): o service só executa. Cada filtro vira um item de `AND: [...]`, para `overdue` e o intervalo de prazo (mesmo campo) não se sobrescreverem. A regra de atrasada (`overdueWhere`) é a mesma na lista e no painel.
+- **`Clock` injetável** (`src/clock`): o "agora" vem de um provider; os testes trocam por um instante fixo com `overrideProvider(Clock)`. Exceção: o `@IsNotInPast` da criação (Dia 3) ainda usa `Date.now()`, porque roda no ValidationPipe, fora da injeção.
+- **`RepeatableRead` na lista e no painel**: as consultas da mesma resposta leem a mesma foto do banco. No padrão (`ReadCommitted`), uma ordem criada entre o `count` e o `findMany` faria o `total` divergir da lista.
+- **Painel com transação interativa**: na forma em array do `$transaction`, o Prisma perde o tipo do `groupBy`.
+- **Busca escapa a barra invertida, `%` e `_`**: medido no banco, o `contains` do Prisma não escapa nada; sem isso, `_` achava tudo e uma busca por um caminho como `C:` seguido de barra e `temp` não achava nada.
+- **Prazo obrigatório mantido** (Dia 4): as regras sobre "sem prazo" e `nulls: 'last'` não têm efeito, porque `dueDate` é `NOT NULL`; o Prisma nem aceita `nulls` nesse campo.

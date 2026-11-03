@@ -66,15 +66,68 @@ o `/auth/me`.
 
 ## Ordens de serviço
 
-| Endpoint                          | Acesso             | O que faz                                   |
-| --------------------------------- | ------------------ | ------------------------------------------- |
-| `POST /work-orders`               | Autenticado        | Cria uma ordem                              |
-| `GET /work-orders`                | Autenticado        | Lista paginada (`page`, `pageSize` até 100) |
-| `GET /work-orders/:id`            | Autenticado        | Mostra uma ordem                            |
-| `PATCH /work-orders/:id`          | Conforme as regras | Edita título, descrição, prioridade e prazo |
-| `PATCH /work-orders/:id/status`   | Conforme as regras | Muda o status                               |
-| `PATCH /work-orders/:id/assignee` | Supervisor         | Define ou remove o responsável              |
-| `DELETE /work-orders/:id`         | Supervisor         | Exclui a ordem e seus eventos               |
+| Endpoint                          | Acesso             | O que faz                                       |
+| --------------------------------- | ------------------ | ----------------------------------------------- |
+| `POST /work-orders`               | Autenticado        | Cria uma ordem                                  |
+| `GET /work-orders`                | Autenticado        | Lista com filtros, busca, ordenação e paginação |
+| `GET /work-orders/:id`            | Autenticado        | Mostra uma ordem                                |
+| `PATCH /work-orders/:id`          | Conforme as regras | Edita título, descrição, prioridade e prazo     |
+| `PATCH /work-orders/:id/status`   | Conforme as regras | Muda o status                                   |
+| `PATCH /work-orders/:id/assignee` | Supervisor         | Define ou remove o responsável                  |
+| `DELETE /work-orders/:id`         | Supervisor         | Exclui a ordem e seus eventos                   |
+| `GET /dashboard/summary`          | Autenticado        | Contadores por status e ordens atrasadas        |
+
+### Parâmetros de `GET /work-orders`
+
+Todos opcionais. Filtros diferentes se combinam com AND; valores de um mesmo filtro, com OR.
+
+| Parâmetro          | Valores                                                           | Padrão      |
+| ------------------ | ----------------------------------------------------------------- | ----------- |
+| `page`             | inteiro ≥ 1                                                       | `1`         |
+| `pageSize`         | 1 a 100                                                           | `20`        |
+| `status`           | `OPEN`, `IN_PROGRESS`, `DONE`, `CANCELLED`, separados por vírgula | sem filtro  |
+| `priority`         | `LOW`, `MEDIUM`, `HIGH`, `URGENT`, separados por vírgula          | sem filtro  |
+| `assigneeId`       | UUID de um usuário ou `me`                                        | sem filtro  |
+| `overdue`          | `true` filtra só atrasadas; `false` não filtra                    | sem filtro  |
+| `dueFrom`, `dueTo` | data e hora com fuso (ISO 8601), intervalo inclusivo              | sem filtro  |
+| `q`                | trecho do título ou da descrição, até 100 caracteres              | sem busca   |
+| `sortBy`           | `createdAt`, `updatedAt`, `dueDate`, `priority`                   | `createdAt` |
+| `order`            | `asc`, `desc`                                                     | `desc`      |
+
+A resposta é `{ items, total, page, pageSize, totalPages }`. Valor inválido ou parâmetro desconhecido
+dá 400.
+
+### Exemplos com `curl`
+
+Pegue um token e guarde numa variável (precisa do `jq`; sem ele, copie o `accessToken` da resposta):
+
+```bash
+TOKEN=$(curl -s localhost:3000/auth/login -H 'Content-Type: application/json' -d '{"email":"ana@opsboard.dev","password":"opsboard123"}' | jq -r .accessToken)
+```
+
+Abertas ou em andamento, atrasadas, prazo mais antigo primeiro:
+
+```bash
+curl -s "localhost:3000/work-orders?status=OPEN,IN_PROGRESS&overdue=true&sortBy=dueDate&order=asc" -H "Authorization: Bearer $TOKEN"
+```
+
+Busca por trecho do título ou da descrição, segunda página de 10:
+
+```bash
+curl -s "localhost:3000/work-orders?q=filtro&page=2&pageSize=10" -H "Authorization: Bearer $TOKEN"
+```
+
+Minhas ordens urgentes com prazo em novembro (horário de Brasília). Fuso negativo vai como está; um fuso positivo precisa de `%2B` no lugar do `+`, que na URL vira espaço:
+
+```bash
+curl -s "localhost:3000/work-orders?assigneeId=me&priority=URGENT&dueFrom=2026-11-01T00:00:00-03:00&dueTo=2026-11-30T23:59:59-03:00" -H "Authorization: Bearer $TOKEN"
+```
+
+Resumo do painel:
+
+```bash
+curl -s localhost:3000/dashboard/summary -H "Authorization: Bearer $TOKEN"
+```
 
 ## Regras de negócio
 
@@ -166,6 +219,18 @@ apenas o hash das senhas.
 Os dados ficam no volume `pgdata` e sobrevivem a `docker compose down`.
 Para apagar tudo: `docker compose down -v`.
 
+### Seed de volume (opcional)
+
+```bash
+npm run seed:large
+```
+
+Acrescenta 5.000 ordens com o prefixo `[volume]` no título, para testar paginação e planos de
+consulta. Precisa do seed normal antes (usa os mesmos usuários), não apaga nem altera as ordens
+dele e, ao rodar de novo, substitui só as ordens `[volume]` da execução anterior (avisando quantas).
+Os dados saem iguais a cada execução, e essas ordens não têm eventos de histórico. Não roda com
+`NODE_ENV=production`.
+
 ## Desenvolvimento (hot reload)
 
 Rode só o banco no Docker e os apps no host:
@@ -188,6 +253,7 @@ Web em http://localhost:5173 (o Vite repassa `/api` para a API em `:3000`).
 | `npm run format`     | Formata o código com Prettier                 |
 | `npm run db:migrate` | Cria/aplica migrations do Prisma              |
 | `npm run db:seed`    | Popula o banco com dados de exemplo           |
+| `npm run seed:large` | Acrescenta 5.000 ordens `[volume]` (opcional) |
 
 ## Estrutura
 
