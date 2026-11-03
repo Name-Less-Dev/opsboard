@@ -365,9 +365,13 @@ describe('Ordens de serviço (integração com banco real)', () => {
         FOR EACH ROW EXECUTE FUNCTION fail_event_insert()`);
 
       try {
-        await setStatus(ana, order.id, 'IN_PROGRESS')
+        const response = await setStatus(ana, order.id, 'IN_PROGRESS')
           .expect(500)
           .expect(errorCode('INTERNAL_ERROR'));
+        // Erro real do Postgres via Prisma: nada dele (mensagem, tabela, código) chega ao cliente.
+        expect(JSON.stringify(response.body)).not.toMatch(
+          /falha simulada|WorkOrderEvent|Pd{4}|prisma/i,
+        );
       } finally {
         await prisma.$executeRawUnsafe('DROP FUNCTION fail_event_insert CASCADE');
       }

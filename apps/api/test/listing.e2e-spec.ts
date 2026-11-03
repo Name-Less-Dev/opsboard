@@ -379,21 +379,29 @@ describe('Listagem e painel (integração com banco real)', () => {
   });
 
   describe('validação (400)', () => {
+    // O `details` aponta o parâmetro da query, para o front saber qual filtro corrigir.
     it.each([
-      ['dueFrom depois de dueTo', 'dueFrom=2026-07-02T00:00:00Z&dueTo=2026-07-01T00:00:00Z'],
-      ['status inválido', 'status=OPEN,PAUSED'],
-      ['prioridade inválida', 'priority=ALTA'],
-      ['pageSize acima de 100', 'pageSize=101'],
-      ['sortBy fora da lista', 'sortBy=title'],
-      ['order inválido', 'order=up'],
-      ['assigneeId que não é UUID', 'assigneeId=ana'],
-      ['overdue que não é booleano', 'overdue=sim'],
-      ['dueFrom sem hora', 'dueFrom=2026-07-01'],
-      ['dueTo inválido', 'dueTo=amanha'],
-      ['q acima de 100 caracteres', `q=${'a'.repeat(101)}`],
-      ['parâmetro desconhecido', 'cor=azul'],
-    ])('%s', async (_name, query) => {
-      await badRequest(query);
+      [
+        'dueFrom depois de dueTo',
+        'dueFrom=2026-07-02T00:00:00Z&dueTo=2026-07-01T00:00:00Z',
+        'dueTo',
+      ],
+      ['status inválido', 'status=OPEN,PAUSED', 'status'],
+      ['prioridade inválida', 'priority=ALTA', 'priority'],
+      ['pageSize acima de 100', 'pageSize=101', 'pageSize'],
+      ['sortBy fora da lista', 'sortBy=title', 'sortBy'],
+      ['order inválido', 'order=up', 'order'],
+      ['assigneeId que não é UUID', 'assigneeId=ana', 'assigneeId'],
+      ['overdue que não é booleano', 'overdue=sim', 'overdue'],
+      ['dueFrom sem hora', 'dueFrom=2026-07-01', 'dueFrom'],
+      ['dueTo inválido', 'dueTo=amanha', 'dueTo'],
+      ['q acima de 100 caracteres', `q=${'a'.repeat(101)}`, 'q'],
+      ['parâmetro desconhecido', 'cor=azul', 'cor'],
+    ])('%s → details no campo %s', async (_name, query, field) => {
+      const response = await badRequest(query);
+      const { details } = response.body as { details: { field: string; messages: string[] }[] };
+      expect(details.map((detail) => detail.field)).toEqual([field]);
+      expect(details[0].messages.length).toBeGreaterThan(0);
     });
 
     it('401 sem token', async () => {
