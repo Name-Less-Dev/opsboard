@@ -55,4 +55,7 @@ export class WorkOrderPageResponseDto implements WorkOrderPage {
 
   @ApiProperty()
   pageSize!: number;
+
+  @ApiProperty({ description: 'Arredondado para cima; 0 quando não há resultados' })
+  totalPages!: number;
 }

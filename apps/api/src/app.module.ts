@@ -2,6 +2,7 @@ import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
+import { ClockModule } from './clock/clock.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
@@ -12,6 +13,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     // No Docker o arquivo não existe e as variáveis vêm do docker-compose.yml.
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     PrismaModule,
+    ClockModule,
     HealthModule,
     AuthModule,
     WorkOrdersModule,

@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Clock } from '../clock/clock';
 import { Prisma, type WorkOrder } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
@@ -21,6 +22,7 @@ import {
   canTransition,
   type EditableField,
 } from './work-order.policy';
+import { buildWorkOrderOrderBy, buildWorkOrderWhere, countPages } from './work-order-query';
 
 // Lista de permissão do formato único de resposta: do usuário só saem id e nome.
 const WORK_ORDER_SELECT = {
@@ -43,6 +45,7 @@ export type WorkOrderPage = {
   total: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 };
 
 type Denied = { allowed: false; reason: 'INVALID_TRANSITION' | 'ORDER_FINAL' | 'FORBIDDEN' };
@@ -83,6 +86,7 @@ export class WorkOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
+    private readonly clock: Clock,
   ) {}
 
   async create(actor: Actor, dto: CreateWorkOrderDto): Promise<WorkOrderResponse> {
@@ -118,18 +122,37 @@ export class WorkOrdersService {
     });
   }
 
-  async findPage({ page, pageSize }: ListWorkOrdersDto): Promise<WorkOrderPage> {
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.workOrder.findMany({
-        select: WORK_ORDER_SELECT,
-        // O id desempata ordens criadas no mesmo instante, para a paginação não repetir nem pular.
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.prisma.workOrder.count(),
-    ]);
-    return { items, total, page, pageSize };
+  async findPage(actor: Actor, query: ListWorkOrdersDto): Promise<WorkOrderPage> {
+    const { page, pageSize } = query;
+    const where = buildWorkOrderWhere(
+      {
+        status: query.status,
+        priority: query.priority,
+        assigneeId: query.assigneeId,
+        overdue: query.overdue,
+        dueFrom: query.dueFrom ? new Date(query.dueFrom) : undefined,
+        dueTo: query.dueTo ? new Date(query.dueTo) : undefined,
+        q: query.q,
+      },
+      { actorId: actor.id, now: this.clock.now() },
+    );
+
+    // Mesmo `where` nas duas consultas. RepeatableRead faz as duas lerem a mesma foto do banco:
+    // no padrão (ReadCommitted), uma ordem criada entre elas faria `total` e `items` divergirem.
+    const [items, total] = await this.prisma.$transaction(
+      [
+        this.prisma.workOrder.findMany({
+          where,
+          select: WORK_ORDER_SELECT,
+          orderBy: buildWorkOrderOrderBy(query.sortBy, query.order),
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        this.prisma.workOrder.count({ where }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    return { items, total, page, pageSize, totalPages: countPages(total, pageSize) };
   }
 
   async findOne(id: string): Promise<WorkOrderResponse> {

@@ -221,7 +221,7 @@ describe('Ordens de serviço (integração com banco real)', () => {
 
     it('usa página 1 e 20 itens por padrão', async () => {
       const response = await api(ana.token).get('/work-orders').expect(200);
-      expect(response.body).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
+      expect(response.body).toEqual({ items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
     });
 
     it.each(['pageSize=101', 'pageSize=0', 'page=0', 'page=abc', 'filtro=x'])(

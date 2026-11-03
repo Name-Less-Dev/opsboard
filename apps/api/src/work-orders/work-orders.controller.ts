@@ -58,11 +58,18 @@ export class WorkOrdersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lista as ordens, das mais recentes para as mais antigas' })
+  @ApiOperation({
+    summary: 'Lista as ordens com filtros, busca, ordenação e paginação',
+    description:
+      'Filtros diferentes se combinam com AND; valores de um mesmo filtro, com OR. Empates na ordenação são desfeitos pelo id.',
+  })
   @ApiOkResponse({ type: WorkOrderPageResponseDto })
   @ApiErrors(400)
-  findPage(@Query() query: ListWorkOrdersDto): Promise<WorkOrderPage> {
-    return this.workOrders.findPage(query);
+  findPage(
+    @CurrentUser() actor: PublicUser,
+    @Query() query: ListWorkOrdersDto,
+  ): Promise<WorkOrderPage> {
+    return this.workOrders.findPage(actor, query);
   }
 
   @Get(':id')
