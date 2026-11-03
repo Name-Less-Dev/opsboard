@@ -112,6 +112,21 @@ Casos de borda definidos:
 - Atribuir o responsável atual dá 200, sem evento. Supervisor pode tirar o responsável de ordem em andamento.
 - Supervisor pode excluir ordem em qualquer estado; os eventos são apagados junto, sem registro da exclusão.
 
+Listagem e painel:
+
+- Atrasada = `dueDate` anterior ao instante atual E status em (`OPEN`, `IN_PROGRESS`). Sem prazo, ou em estado final, nunca é atrasada. Prazo exatamente igual ao instante atual ainda não é atrasado.
+- Todos os usuários autenticados veem os mesmos dados na lista e no painel (sem escopo por perfil).
+- Resultados com a mesma chave de ordenação saem em ordem estável (desempate por `id`, no mesmo sentido da ordenação), para a paginação não repetir nem pular itens.
+- Filtros diferentes se combinam com AND; valores de um mesmo filtro separados por vírgula se combinam com OR.
+- Datas são comparadas como instantes (o banco guarda em UTC). `dueFrom` e `dueTo` exigem data, hora e fuso, como o prazo da criação, e o intervalo é inclusivo.
+- Em `status` e `priority`, espaços e valores repetidos são ignorados, assim como itens vazios (`OPEN,`). `q` passa por trim, é ignorado se vazio e dá 400 acima de 100 caracteres.
+- A prioridade ordena por gravidade (`LOW` < `MEDIUM` < `HIGH` < `URGENT`), que é a ordem de declaração do enum no Postgres.
+
+## Limitações conhecidas
+
+- A busca (`q`) diferencia acentos: "manutencao" não acha "manutenção". A solução futura é a extensão `unaccent` do Postgres.
+- Hoje todo prazo é obrigatório, então as regras sobre ordens sem prazo não têm efeito prático.
+
 ## Testes
 
 ```bash
