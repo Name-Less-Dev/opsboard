@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { applyDecorators } from '@nestjs/common';
-import { IsISO8601, Matches, registerDecorator } from 'class-validator';
+import { IsISO8601, Matches, registerDecorator, type ValidationArguments } from 'class-validator';
 
 // Com `transform: true` no ValidationPipe, roda antes das validações de tamanho.
 export const Trim = () =>
@@ -17,6 +17,28 @@ export const IsDateTimeWithZone = () =>
       message: '$property deve ter data e hora com fuso (ex.: 2026-11-05T18:00:00-03:00)',
     }),
   );
+
+// Compara com outro campo do mesmo DTO. Se algum dos dois faltar ou for inválido, não opina:
+// a ausência e o formato já são checados pelos outros decorators.
+export function IsNotBefore(otherProperty: string) {
+  return (target: object, propertyName: string) => {
+    registerDecorator({
+      name: 'isNotBefore',
+      target: target.constructor,
+      propertyName,
+      constraints: [otherProperty],
+      options: { message: '$property não pode ser anterior a $constraint1' },
+      validator: {
+        validate: (value: unknown, args: ValidationArguments) => {
+          const other = (args.object as Record<string, unknown>)[otherProperty];
+          if (typeof value !== 'string' || typeof other !== 'string') return true;
+          const [end, start] = [new Date(value).getTime(), new Date(other).getTime()];
+          return Number.isNaN(end) || Number.isNaN(start) || end >= start;
+        },
+      },
+    });
+  };
+}
 
 export function IsNotInPast() {
   return (target: object, propertyName: string) => {
