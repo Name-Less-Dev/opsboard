@@ -6,6 +6,7 @@ import { ClockModule } from './clock/clock.module';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter';
 import { validationError } from './common/errors/domain.exception';
 import { toValidationDetails } from './common/errors/validation-details';
+import { requestLogMiddleware } from './common/request-log/request-log';
 import { requestIdMiddleware } from './common/request-id/request-id';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
@@ -40,6 +41,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(requestIdMiddleware).forRoutes('*');
+    // Nesta ordem: o log usa o requestId.
+    consumer.apply(requestIdMiddleware, requestLogMiddleware).forRoutes('*');
   }
 }
