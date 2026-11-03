@@ -9,7 +9,13 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/coverage/**', 'apps/api/src/generated/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      'apps/api/src/generated/**',
+      // Gerado por npm run types:generate.
+      'apps/web/src/lib/api-schema.d.ts',
+    ],
   },
 
   eslint.configs.recommended,

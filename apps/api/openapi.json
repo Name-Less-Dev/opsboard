@@ -1,0 +1,1472 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: banco de dados indisponível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Verifica se a API e o banco respondem",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: credenciais inválidas (mesma resposta para e-mail inexistente)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "TOO_MANY_REQUESTS: tentativas demais deste IP; ver o header Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Autentica com e-mail e senha e devolve o access token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Devolve o usuário autenticado",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/work-orders": {
+      "post": {
+        "description": "Operador vira o responsável; enviar outro responsável retorna 403.",
+        "operationId": "WorkOrdersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cria uma ordem",
+        "tags": [
+          "work-orders"
+        ]
+      },
+      "get": {
+        "description": "Filtros diferentes se combinam com AND; valores de um mesmo filtro, com OR. Empates na ordenação são desfeitos pelo id.",
+        "operationId": "WorkOrdersController_findPage",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Um ou mais (OR), separados por vírgula ou repetindo o parâmetro",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Um ou mais (OR), separados por vírgula ou repetindo o parâmetro",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            }
+          },
+          {
+            "name": "assigneeId",
+            "required": false,
+            "in": "query",
+            "description": "UUID de um usuário ou `me` (o usuário autenticado)",
+            "schema": {
+              "example": "me",
+              "type": "string"
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "`true` filtra só atrasadas; `false` ou ausente não filtra",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "dueFrom",
+            "required": false,
+            "in": "query",
+            "description": "Prazo a partir deste instante (inclusivo); exige hora e fuso",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-11-01T00:00:00-03:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dueTo",
+            "required": false,
+            "in": "query",
+            "description": "Prazo até este instante (inclusivo); não pode ser anterior a `dueFrom`",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-11-30T23:59:59-03:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Trecho do título ou da descrição, sem diferenciar maiúsculas",
+            "schema": {
+              "maxLength": 100,
+              "example": "filtro",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "dueDate",
+                "priority"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderPageResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Lista as ordens com filtros, busca, ordenação e paginação",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/work-orders/{id}": {
+      "get": {
+        "operationId": "WorkOrdersController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: ordem de serviço não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mostra uma ordem",
+        "tags": [
+          "work-orders"
+        ]
+      },
+      "patch": {
+        "description": "Supervisor edita qualquer ordem ativa. Operador, só título e descrição das ordens em que é o responsável.",
+        "operationId": "WorkOrdersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: ordem de serviço não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_TRANSITION, ORDER_FINALIZED ou CONCURRENT_UPDATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edita título, descrição, prioridade e prazo",
+        "tags": [
+          "work-orders"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkOrdersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Ordem excluída"
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: ordem de serviço não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Exclui a ordem e seus eventos (somente supervisor)",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/work-orders/{id}/status": {
+      "patch": {
+        "description": "OPEN → IN_PROGRESS e IN_PROGRESS → DONE: responsável ou supervisor. OPEN/IN_PROGRESS → CANCELLED: só supervisor.",
+        "operationId": "WorkOrdersController_changeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: ordem de serviço não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_TRANSITION, ORDER_FINALIZED ou CONCURRENT_UPDATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Muda o status da ordem",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/work-orders/{id}/assignee": {
+      "patch": {
+        "operationId": "WorkOrdersController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssigneeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: ordem de serviço não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "INVALID_TRANSITION, ORDER_FINALIZED ou CONCURRENT_UPDATE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Define ou remove o responsável (somente supervisor)",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/dashboard/summary": {
+      "get": {
+        "operationId": "DashboardController_getSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Contadores por status e ordens atrasadas",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "OpsBoard API",
+    "description": "",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "up"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "database"
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "VALIDATION_ERROR",
+          "UNAUTHORIZED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "INVALID_TRANSITION",
+          "ORDER_FINALIZED",
+          "CONCURRENT_UPDATE",
+          "CONFLICT",
+          "TOO_MANY_REQUESTS",
+          "INTERNAL_ERROR",
+          "SERVICE_UNAVAILABLE",
+          "HTTP_ERROR"
+        ],
+        "description": "Estável: é o que o cliente deve usar para decidir o que fazer"
+      },
+      "ValidationDetailDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "example": "title",
+            "description": "Campo inválido; aninhados com ponto (items.0.name)"
+          },
+          "messages": {
+            "example": [
+              "title must be longer than or equal to 3 characters"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "field",
+          "messages"
+        ]
+      },
+      "ErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "code": {
+            "example": "VALIDATION_ERROR",
+            "description": "Estável: é o que o cliente deve usar para decidir o que fazer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCode"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "Dados inválidos",
+            "description": "Legível, em português; pode mudar"
+          },
+          "details": {
+            "description": "Só em VALIDATION_ERROR, e sempre presente nele (pode ser vazio)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationDetailDto"
+            }
+          },
+          "path": {
+            "type": "string",
+            "example": "/work-orders",
+            "description": "Caminho, sem a query string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-04T12:00:00.000Z"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "0b6d2a4e-3f1c-4d9a-8e7b-5c2f1a0d9e8b",
+            "description": "Igual ao header x-request-id; informe ao suporte em caso de erro 500"
+          }
+        },
+        "required": [
+          "statusCode",
+          "code",
+          "message",
+          "path",
+          "timestamp",
+          "requestId"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "supervisor@opsboard.dev"
+          },
+          "password": {
+            "type": "string",
+            "example": "opsboard123",
+            "maxLength": 72
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "OPERATOR",
+          "SUPERVISOR"
+        ]
+      },
+      "UserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Carla Supervisora"
+          },
+          "email": {
+            "type": "string",
+            "example": "supervisor@opsboard.dev"
+          },
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponseDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "WorkOrderPriority": {
+        "type": "string",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "URGENT"
+        ]
+      },
+      "CreateWorkOrderDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120,
+            "example": "Trocar filtro do ar-condicionado"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            ]
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2026-12-01T18:00:00-03:00",
+            "format": "date-time",
+            "description": "Data e hora com fuso; não pode estar no passado"
+          },
+          "assigneeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Operador: omita, envie null ou o próprio id. Supervisor: qualquer usuário ou null."
+          }
+        },
+        "required": [
+          "title",
+          "priority",
+          "dueDate"
+        ]
+      },
+      "WorkOrderStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "IN_PROGRESS",
+          "DONE",
+          "CANCELLED"
+        ]
+      },
+      "UserRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "9cbbf785-9a72-4703-b484-0afd39d65703"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ana Operadora"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "WorkOrderResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "3f6c1d2e-8a4b-4c7d-9e0f-1a2b3c4d5e6f"
+          },
+          "title": {
+            "type": "string",
+            "example": "Vazamento na pia da copa"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Água acumulando embaixo do gabinete."
+          },
+          "priority": {
+            "example": "HIGH",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            ]
+          },
+          "status": {
+            "example": "IN_PROGRESS",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "dueDate": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-11-01T17:00:00.000Z"
+          },
+          "assignee": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserRefDto"
+              }
+            ]
+          },
+          "createdBy": {
+            "$ref": "#/components/schemas/UserRefDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-19T14:30:00.000Z"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-20T09:15:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "priority",
+          "status",
+          "dueDate",
+          "assignee",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "WorkOrderPageResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkOrderResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "number",
+            "example": 20
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 3,
+            "description": "Arredondado para cima; 0 quando não há resultados"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages"
+        ]
+      },
+      "UpdateWorkOrderDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true,
+            "description": "null limpa a descrição"
+          },
+          "priority": {
+            "description": "Somente supervisor",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            ]
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2026-12-01T18:00:00-03:00",
+            "format": "date-time",
+            "description": "Somente supervisor; data e hora com fuso"
+          }
+        }
+      },
+      "UpdateStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "UpdateAssigneeDto": {
+        "type": "object",
+        "properties": {
+          "assigneeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "null remove o responsável"
+          }
+        },
+        "required": [
+          "assigneeId"
+        ]
+      },
+      "StatusCountsDto": {
+        "type": "object",
+        "properties": {
+          "OPEN": {
+            "type": "number",
+            "example": 5
+          },
+          "IN_PROGRESS": {
+            "type": "number",
+            "example": 2
+          },
+          "DONE": {
+            "type": "number",
+            "example": 2
+          },
+          "CANCELLED": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": [
+          "OPEN",
+          "IN_PROGRESS",
+          "DONE",
+          "CANCELLED"
+        ]
+      },
+      "OverdueDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number",
+            "example": 4,
+            "description": "Total de ordens atrasadas"
+          },
+          "items": {
+            "description": "Até 10 atrasadas, prazo mais antigo primeiro",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkOrderResponseDto"
+            }
+          }
+        },
+        "required": [
+          "count",
+          "items"
+        ]
+      },
+      "DashboardSummaryDto": {
+        "type": "object",
+        "properties": {
+          "byStatus": {
+            "description": "Sempre com as 4 chaves; 0 quando vazio",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StatusCountsDto"
+              }
+            ]
+          },
+          "overdue": {
+            "$ref": "#/components/schemas/OverdueDto"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-11-03T16:40:09.764Z",
+            "description": "Instante usado como \"agora\" no cálculo de atrasadas"
+          }
+        },
+        "required": [
+          "byStatus",
+          "overdue",
+          "generatedAt"
+        ]
+      }
+    }
+  }
+}

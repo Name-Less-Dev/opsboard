@@ -20,7 +20,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "seed:large": "tsx prisma/seed-large.ts"
+    "seed:large": "tsx prisma/seed-large.ts",
+    "openapi:export": "npm run build && node dist/scripts/export-openapi.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

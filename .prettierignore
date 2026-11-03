@@ -3,3 +3,6 @@ coverage
 package-lock.json
 apps/api/src/generated
 apps/api/prisma/migrations
+# Gerados por npm run contract:generate
+apps/api/openapi.json
+apps/web/src/lib/api-schema.d.ts
