@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { InvalidEnvError } from './../src/config/app-config';
 import { errorCode } from './error-code';
 import { createTestApp, operator } from './test-app';
 
@@ -26,6 +27,18 @@ const wrongLogin = (app: INestApplication<App>, forwardedFor?: string) => {
 };
 
 describe('Segurança HTTP (e2e)', () => {
+  it('variável inválida impede a aplicação de subir, sem mostrar o valor', async () => {
+    const error = await appWith({ JWT_SECRET: 'curto-demais', TRUST_PROXY: 'sim' }).then(
+      () => new Error('a aplicação subiu'),
+      (rejection: unknown) => rejection,
+    );
+    expect(error).toBeInstanceOf(InvalidEnvError);
+    const { message } = error as InvalidEnvError;
+    expect(message).toMatch(/JWT_SECRET/);
+    expect(message).toMatch(/TRUST_PROXY/);
+    expect(message).not.toContain('curto-demais');
+  });
+
   describe('helmet', () => {
     let app: INestApplication<App>;
     beforeAll(async () => (app = await appWith({})));

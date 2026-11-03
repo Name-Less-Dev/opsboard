@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { seconds, ThrottlerModule } from '@nestjs/throttler';
+import { AppConfig } from '../config/app-config';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -18,23 +18,24 @@ import { JwtStrategy } from './jwt.strategy';
     // Contagem em memória, por processo: com mais de uma instância da API, cada uma conta à parte
     // (o limite efetivo vira N vezes o configurado). Aceito no MVP; sem Redis por decisão.
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => [
+      inject: [AppConfig],
+      useFactory: (config: AppConfig) => [
         {
           // Nome `default` mantém os headers padrão (Retry-After, X-RateLimit-*).
           name: 'default',
-          limit: Number(config.get<string>('LOGIN_RATE_LIMIT') ?? 5),
-          ttl: seconds(Number(config.get<string>('LOGIN_RATE_TTL') ?? 60)),
+          limit: config.loginRateLimit,
+          ttl: seconds(config.loginRateTtlSeconds),
         },
       ],
     }),
     JwtModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
+      inject: [AppConfig],
+      useFactory: (config: AppConfig) => ({
+        secret: config.jwtSecret,
         signOptions: {
           algorithm: 'HS256',
-          expiresIn: config.getOrThrow<JwtSignOptions['expiresIn']>('JWT_EXPIRES_IN'),
+          // Validado em loadAppConfig no formato que o jsonwebtoken aceita.
+          expiresIn: config.jwtExpiresIn as JwtSignOptions['expiresIn'],
         },
       }),
     }),

@@ -46,6 +46,9 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-0}
       LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-5}
       LOGIN_RATE_TTL: ${LOGIN_RATE_TTL:-60}
+      # A imagem roda com NODE_ENV=production, onde o Swagger é desligado por padrão.
+      # Ligado aqui porque o compose é a demonstração local; desligue num deploy real.
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
       DATABASE_URL: *database-url
     ports:
       - '3000:3000'

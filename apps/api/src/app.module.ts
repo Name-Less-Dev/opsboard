@@ -1,8 +1,8 @@
 import { type MiddlewareConsumer, Module, type NestModule, ValidationPipe } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { ClockModule } from './clock/clock.module';
+import { AppConfigModule } from './config/app-config.module';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter';
 import { validationError } from './common/errors/domain.exception';
 import { toValidationDetails } from './common/errors/validation-details';
@@ -15,9 +15,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
 
 @Module({
   imports: [
-    // No host, lê o .env da raiz do monorepo (o cwd é apps/api).
-    // No Docker o arquivo não existe e as variáveis vêm do docker-compose.yml.
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
+    AppConfigModule,
     PrismaModule,
     ClockModule,
     HealthModule,

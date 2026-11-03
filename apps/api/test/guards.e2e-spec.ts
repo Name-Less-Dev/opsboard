@@ -23,7 +23,7 @@ class ProbeController {
 }
 
 describe('Guards globais (e2e)', () => {
-  const jwt = new JwtService({ secret: 'segredo-de-teste' }); // igual ao de setup-env.ts
+  const jwt = new JwtService({ secret: 'segredo-de-teste-com-pelo-menos-32-caracteres' }); // igual ao de setup-env.ts
   let app: INestApplication<App>;
 
   const get = (path: string, token?: string) => {
