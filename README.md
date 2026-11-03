@@ -27,6 +27,18 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 
 ```bash
 cp .env.example .env
+```
+
+Troque o `JWT_SECRET` do `.env` por um valor seu, com pelo menos 32 caracteres. A imagem da API roda
+com `NODE_ENV=production`, que recusa o segredo de exemplo. Para gerar um:
+
+```bash
+openssl rand -base64 32
+```
+
+Depois suba tudo:
+
+```bash
 docker compose up --build
 ```
 
@@ -42,15 +54,23 @@ mostrar **"API ok"**. O web chama a API pelo caminho `/api`, que o nginx repassa
 
 ### Variáveis de ambiente
 
-Ficam no `.env` da raiz (modelo em `.env.example`).
+Ficam no `.env` da raiz (modelo em `.env.example`). A API valida todas ao iniciar: com alguma
+inválida, ela não sobe e lista quais estão erradas (sem mostrar os valores).
 
-| Variável                                            | Para quê                                                           |
-| --------------------------------------------------- | ------------------------------------------------------------------ |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciais do Postgres                                            |
-| `DATABASE_URL`                                      | Conexão usada pela API e pelo Prisma fora do Docker                |
-| `JWT_SECRET`                                        | Assina os tokens. **Obrigatória:** sem ela o compose não sobe      |
-| `TEST_DATABASE_URL`                                 | Banco dos testes de integração; o nome precisa terminar em `_test` |
-| `JWT_EXPIRES_IN`                                    | Validade do access token (padrão `1h`). Não há refresh token       |
+| Variável                                            | Obrigatória          | Exemplo                                                       | Descrição                                                                                                                                                           |
+| --------------------------------------------------- | -------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Não                  | `opsboard`                                                    | Credenciais do Postgres do compose (padrão `opsboard`)                                                                                                              |
+| `DATABASE_URL`                                      | Sim (fora do Docker) | `postgresql://opsboard:opsboard@localhost:5432/opsboard`      | Conexão da API e do Prisma no host. No compose, é montada com o host `db`                                                                                           |
+| `JWT_SECRET`                                        | Sim                  | saída de `openssl rand -base64 32`                            | Assina os tokens. Mínimo de 32 caracteres; em produção, o valor de exemplo do `.env.example` é recusado                                                             |
+| `JWT_EXPIRES_IN`                                    | Sim                  | `1h`                                                          | Validade do token, em segundos ou com unidade `s`, `m`, `h`, `d` (o compose usa `1h`). Não há refresh token                                                         |
+| `NODE_ENV`                                          | Não                  | `production`                                                  | `development` (padrão), `production` ou `test`. A imagem Docker usa `production`                                                                                    |
+| `PORT`                                              | Não                  | `3000`                                                        | Porta da API (padrão `3000`)                                                                                                                                        |
+| `CORS_ORIGINS`                                      | Não                  | `https://ops.example.com`                                     | Origens liberadas, separadas por vírgula, sem barra no fim. Vazio (padrão) libera nenhuma; o front oficial não precisa, porque usa a mesma origem                   |
+| `TRUST_PROXY`                                       | Não                  | `1`                                                           | Quantos proxies à frente da API são confiáveis para ler o IP do `X-Forwarded-For` (padrão `0`, ignora o header). Valor maior que o real deixa o cliente forjar o IP |
+| `LOGIN_RATE_LIMIT`                                  | Não                  | `5`                                                           | Tentativas de login por IP na janela (padrão `5`)                                                                                                                   |
+| `LOGIN_RATE_TTL`                                    | Não                  | `60`                                                          | Tamanho da janela do limite de login, em segundos (padrão `60`)                                                                                                     |
+| `SWAGGER_ENABLED`                                   | Não                  | `true`                                                        | Liga o `/docs`. Padrão: ligado fora de produção, desligado em produção. O compose liga, por ser a demonstração local                                                |
+| `TEST_DATABASE_URL`                                 | Só para testes       | `postgresql://opsboard:opsboard@localhost:5432/opsboard_test` | Banco dos testes de integração; o nome precisa terminar em `_test`                                                                                                  |
 
 ## Autenticação
 
@@ -168,6 +188,36 @@ Toda resposta de erro, de qualquer rota, tem este formato:
 | `INTERNAL_ERROR`      | 500    | Erro inesperado; detalhe só no log                                  |
 | `SERVICE_UNAVAILABLE` | 503    | `GET /health` com o banco fora do ar                                |
 
+No Swagger, toda rota documenta os status que pode devolver, todos com o schema `ErrorResponseDto`.
+
+### Logs
+
+Cada requisição gera uma linha, com uma lista fechada de campos (nunca corpo, headers, token,
+e-mail ou query string):
+
+```
+[HTTP] GET /auth/me 200 4ms requestId=0b6d2a4e-… userId=3a7e…
+```
+
+Respostas 4xx e 5xx saem como `warn`. Em 5xx, o filtro de erros registra também a stack, com o mesmo
+`requestId` que o cliente recebeu.
+
+## Contrato OpenAPI e tipos do front
+
+O documento OpenAPI fica versionado em `apps/api/openapi.json`, e os tipos TypeScript gerados a partir
+dele em `apps/web/src/lib/api-types.ts` (só tipos, sem cliente gerado). Não é preciso banco no ar.
+
+Depois de mudar um endpoint ou um DTO:
+
+```bash
+npm run openapi:export -w @opsboard/api   # compila a API e escreve apps/api/openapi.json
+npm run types:generate -w @opsboard/web   # gera apps/web/src/lib/api-types.ts
+```
+
+`npm run contract:generate` roda os dois em sequência. Commite os dois arquivos junto com a mudança.
+`npm run check:contract` regenera e falha se algo mudou, o que mostra que a API foi alterada sem
+regenerar os tipos.
+
 ## Regras de negócio
 
 Fonte da verdade do fluxo de ordens de serviço.
@@ -218,6 +268,10 @@ Listagem e painel:
 
 - A busca (`q`) diferencia acentos: "manutencao" não acha "manutenção". A solução futura é a extensão `unaccent` do Postgres.
 - Hoje todo prazo é obrigatório, então as regras sobre ordens sem prazo não têm efeito prático.
+- **Limite de login em memória**: cada instância da API conta à parte e reiniciar zera a contagem. Com várias instâncias, o limite efetivo é multiplicado; resolver exigiria um armazenamento compartilhado (como Redis), fora do escopo.
+- **IP atrás do nginx no compose**: o nginx não repassa o IP do cliente e o compose usa `TRUST_PROXY=0`, então quem acessa pela porta 8080 divide uma única contagem de tentativas. Corrigir exige `TRUST_PROXY=1`, o nginx definir `X-Forwarded-For` e a porta 3000 deixar de ser publicada (senão o acesso direto forja o IP).
+- **Token no `localStorage`**: sobrevive ao recarregar e não sofre CSRF, mas um XSS consegue lê-lo. A expiração de 1h limita o estrago.
+- **Sem refresh token**: quando o token expira, é preciso entrar de novo.
 
 ## Testes
 
@@ -230,10 +284,19 @@ Os testes de integração da API rodam em um banco separado (`opsboard_test`), c
 Postgres. Eles apagam as tabelas desse banco e se recusam a rodar em um banco cujo nome não termine
 em `_test`, então o banco de desenvolvimento não é tocado.
 
+```bash
+npm run test:cov
+```
+
+Gera a cobertura da API (unitários e integração somados, em `apps/api/coverage`) e do web
+(`apps/web/coverage`), e falha abaixo dos limites: 90% em `work-order.policy.ts`,
+`work-order-query.ts` e no mapeador de erros, mais um limite global modesto nos dois apps.
+
 ## Banco: migrations e seed
 
 As migrations rodam sozinhas: o serviço `migrate` aplica as pendentes (`prisma migrate deploy`)
-e termina, e só então a API sobe. A ordem é `db` → `migrate` → `api` → `web`.
+e termina, e só então a API sobe. A ordem é `db` (saudável) → `migrate` (termina com sucesso) →
+`api` (saudável, com `/health` respondendo 200) → `web`.
 
 O seed **não** roda sozinho, porque apaga os dados existentes. Com os serviços no ar:
 
@@ -283,16 +346,19 @@ Web em http://localhost:5173 (o Vite repassa `/api` para a API em `:3000`).
 
 ## Scripts (raiz)
 
-| Comando              | O que faz                                     |
-| -------------------- | --------------------------------------------- |
-| `npm run dev`        | API (watch) e web (Vite) juntos               |
-| `npm run build`      | Build de todos os apps                        |
-| `npm run test`       | Testes de todos os apps                       |
-| `npm run lint`       | ESLint + verificação de formatação (Prettier) |
-| `npm run format`     | Formata o código com Prettier                 |
-| `npm run db:migrate` | Cria/aplica migrations do Prisma              |
-| `npm run db:seed`    | Popula o banco com dados de exemplo           |
-| `npm run seed:large` | Acrescenta 5.000 ordens `[volume]` (opcional) |
+| Comando                     | O que faz                                               |
+| --------------------------- | ------------------------------------------------------- |
+| `npm run dev`               | API (watch) e web (Vite) juntos                         |
+| `npm run build`             | Build de todos os apps                                  |
+| `npm run test`              | Testes de todos os apps                                 |
+| `npm run test:cov`          | Testes com cobertura e limites mínimos                  |
+| `npm run contract:generate` | Exporta o OpenAPI e gera os tipos do web                |
+| `npm run check:contract`    | Falha se o OpenAPI ou os tipos estiverem desatualizados |
+| `npm run lint`              | ESLint + verificação de formatação (Prettier)           |
+| `npm run format`            | Formata o código com Prettier                           |
+| `npm run db:migrate`        | Cria/aplica migrations do Prisma                        |
+| `npm run db:seed`           | Popula o banco com dados de exemplo                     |
+| `npm run seed:large`        | Acrescenta 5.000 ordens `[volume]` (opcional)           |
 
 ## Estrutura
 
