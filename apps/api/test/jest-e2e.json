@@ -1,6 +1,7 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "..",
+  "roots": ["<rootDir>/test"],
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
@@ -9,7 +10,7 @@
   "moduleNameMapper": {
     "^([.]{1,2}/.*)[.]js$": "$1"
   },
-  "setupFiles": ["<rootDir>/setup-env.ts"],
-  "globalSetup": "<rootDir>/global-setup.ts",
+  "setupFiles": ["<rootDir>/test/setup-env.ts"],
+  "globalSetup": "<rootDir>/test/global-setup.ts",
   "maxWorkers": 1
 }

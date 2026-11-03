@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "seed:large": "npm run seed:large -w @opsboard/api",
     "contract:generate": "npm run openapi:export -w @opsboard/api && npm run types:generate -w @opsboard/web",
-    "check:contract": "npm run contract:generate && git diff --exit-code -- apps/api/openapi.json apps/web/src/lib/api-schema.d.ts"
+    "check:contract": "npm run contract:generate && git diff --exit-code -- apps/api/openapi.json apps/web/src/lib/api-schema.d.ts",
+    "test:cov": "npm run test:cov --workspaces --if-present"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
