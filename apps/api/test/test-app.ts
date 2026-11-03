@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { hashSync } from 'bcrypt';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { configureApp } from './../src/configure-app';
 import { PrismaService } from './../src/prisma/prisma.service';
 
 export const TEST_PASSWORD = 'senha-de-teste';
@@ -58,6 +59,7 @@ export async function createTestApp(controllers: Type[] = []): Promise<INestAppl
     .compile();
 
   const app = moduleRef.createNestApplication<INestApplication<App>>();
+  configureApp(app);
   await app.init();
   return app;
 }

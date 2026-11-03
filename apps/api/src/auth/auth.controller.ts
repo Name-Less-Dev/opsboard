@@ -1,12 +1,14 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import type { PublicUser } from '../users/users.service';
 import { AuthService, type LoginResult } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -23,10 +25,14 @@ export class AuthController {
   @Post('login')
   // POST devolve 201 por padrão, mas o login não cria nenhum recurso.
   @HttpCode(200)
+  // Só o login tem limite (por IP): é o alvo de tentativa de senha por força bruta.
+  // Conta toda tentativa, certa ou errada, para não revelar quais deram certo.
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Autentica com e-mail e senha e devolve o access token' })
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiBadRequestResponse({ description: 'Corpo da requisição inválido' })
   @ApiUnauthorizedResponse({ description: 'Credenciais inválidas' })
+  @ApiTooManyRequestsResponse({ description: 'Tentativas demais deste IP; ver Retry-After' })
   login(@Body() dto: LoginDto): Promise<LoginResult> {
     return this.auth.login(dto.email, dto.password);
   }
