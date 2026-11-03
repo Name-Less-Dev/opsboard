@@ -1,14 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-  ApiTooManyRequestsResponse,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ApiErrors } from '../common/errors/api-errors.decorator';
 import type { PublicUser } from '../users/users.service';
 import { AuthService, type LoginResult } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -30,9 +23,11 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Autentica com e-mail e senha e devolve o access token' })
   @ApiOkResponse({ type: LoginResponseDto })
-  @ApiBadRequestResponse({ description: 'Corpo da requisição inválido' })
-  @ApiUnauthorizedResponse({ description: 'Credenciais inválidas' })
-  @ApiTooManyRequestsResponse({ description: 'Tentativas demais deste IP; ver Retry-After' })
+  @ApiErrors(
+    400,
+    [401, 'UNAUTHORIZED: credenciais inválidas (mesma resposta para e-mail inexistente)'],
+    429,
+  )
   login(@Body() dto: LoginDto): Promise<LoginResult> {
     return this.auth.login(dto.email, dto.password);
   }
@@ -41,7 +36,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Devolve o usuário autenticado' })
   @ApiOkResponse({ type: UserResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
+  @ApiErrors(401)
   me(@CurrentUser() user: PublicUser): PublicUser {
     return user;
   }

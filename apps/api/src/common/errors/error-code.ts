@@ -19,7 +19,23 @@ export type DomainErrorCode = keyof typeof ERROR_STATUS;
 // HTTP_ERROR não tem status fixo: cobre outros 4xx do framework (ex.: 405, 413) com o status original.
 export type ErrorCode = DomainErrorCode | 'HTTP_ERROR';
 
+export const ERROR_CODES: readonly ErrorCode[] = [
+  ...(Object.keys(ERROR_STATUS) as DomainErrorCode[]),
+  'HTTP_ERROR',
+];
+
 export type ValidationDetail = {
   field: string;
   messages: string[];
+};
+
+// Corpo de toda resposta de erro (montado pelo AllExceptionsFilter).
+export type ErrorResponse = {
+  statusCode: number;
+  code: ErrorCode;
+  message: string;
+  details?: ValidationDetail[];
+  path: string;
+  timestamp: string;
+  requestId: string;
 };

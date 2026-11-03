@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiErrors } from '../work-orders/api-errors.decorator';
+import { ApiErrors } from '../common/errors/api-errors.decorator';
 import { type DashboardSummary, DashboardService } from './dashboard.service';
 import { DashboardSummaryDto } from './dto/dashboard-summary.dto';
 

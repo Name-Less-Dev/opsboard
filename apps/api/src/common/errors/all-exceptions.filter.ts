@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { ensureRequestId } from '../request-id/request-id';
 import { trackRequest } from '../request-log/request-log';
 import { requestPath } from '../request-path';
+import type { ErrorResponse } from './error-code';
 import { mapError } from './error-mapper';
 
 // Único ponto que escreve respostas de erro: tudo que é lançado passa pelo mapError.
@@ -28,11 +29,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
-    res.status(body.statusCode).json({
+    const response: ErrorResponse = {
       ...body,
       path,
       timestamp: new Date().toISOString(),
       requestId,
-    });
+    };
+    res.status(body.statusCode).json(response);
   }
 }

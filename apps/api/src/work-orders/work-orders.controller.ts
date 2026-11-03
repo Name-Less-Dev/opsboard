@@ -13,7 +13,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { parseIdPipe } from '../common/pipes/parse-id.pipe';
 import { Role } from '../generated/prisma/enums';
 import type { PublicUser } from '../users/users.service';
-import { ApiErrors } from './api-errors.decorator';
+import { ApiErrors } from '../common/errors/api-errors.decorator';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
 import { WorkOrderPageResponseDto, WorkOrderResponseDto } from './dto/work-order-response.dto';
