@@ -370,7 +370,7 @@ describe('Ordens de serviço (integração com banco real)', () => {
           .expect(errorCode('INTERNAL_ERROR'));
         // Erro real do Postgres via Prisma: nada dele (mensagem, tabela, código) chega ao cliente.
         expect(JSON.stringify(response.body)).not.toMatch(
-          /falha simulada|WorkOrderEvent|Pd{4}|prisma/i,
+          /falha simulada|WorkOrderEvent|P\d{4}|prisma/i,
         );
       } finally {
         await prisma.$executeRawUnsafe('DROP FUNCTION fail_event_insert CASCADE');
