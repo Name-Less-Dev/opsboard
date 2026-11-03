@@ -56,6 +56,20 @@ services:
       # A api só sobe depois que as migrations terminaram com sucesso (exit 0).
       migrate:
         condition: service_completed_successfully
+    # Saudável só quando o /health responde 200, ou seja, API no ar e banco respondendo.
+    # A imagem não tem curl; o fetch do Node resolve. start_period cobre o boot do Nest.
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   web:
     build:
@@ -63,8 +77,10 @@ services:
       dockerfile: apps/web/Dockerfile
     ports:
       - '8080:80'
+    # O nginx só sobe com a api saudável: antes disso, /api responderia 502.
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata:
