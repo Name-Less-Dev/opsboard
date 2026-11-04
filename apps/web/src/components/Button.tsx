@@ -1,7 +1,8 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import { buttonClass, type ButtonSize, type ButtonVariant } from './button-styles';
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+// `ComponentProps<'button'>` inclui `ref` (no React 19, uma prop comum).
+export type ButtonProps = ComponentProps<'button'> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
 };
