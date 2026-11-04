@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { OverdueBadge, PriorityBadge, StatusBadge } from '../components/Badge';
 import { Button } from '../components/Button';
@@ -121,6 +121,16 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Depois de uma ação, o botão clicado costuma sumir (Iniciar vira Concluir; Cancelar some) e o
+  // foco cairia no <body>; ele vai para o título, e o aviso sai na região role="status". É um
+  // efeito, e não um `focus()` direto, porque os efeitos dos filhos rodam antes: quando este
+  // roda, o <dialog> já fechou (com ele aberto, o resto da página fica inerte e não recebe foco).
+  const [focusRequest, setFocusRequest] = useState(0);
+  const focusHeading = () => setFocusRequest((value) => value + 1);
+  useEffect(() => {
+    if (focusRequest > 0) headingRef.current?.focus();
+  }, [focusRequest]);
+
   if (!user) return null;
   const actions = getAvailableActions(user, order);
   const final = order.status === 'DONE' || order.status === 'CANCELLED';
@@ -133,9 +143,7 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
     changeStatus.mutate(status, {
       onSuccess: () => {
         flash.setMessage(STATUS_SUCCESS[status] ?? 'Status atualizado.');
-        // O botão clicado some (vira o próximo passo do fluxo): sem isso, o foco cairia no
-        // <body>. O aviso é anunciado pela região role="status".
-        headingRef.current?.focus();
+        focusHeading();
       },
       // Em 409 o hook já busca o detalhe de novo; aqui só a mensagem, pelo `code`.
       onError: (error) => setActionError(error),
@@ -280,8 +288,7 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
           onSuccess={() => {
             setActionError(null);
             flash.setMessage('Responsável atualizado.');
-            // O seletor é recriado com o novo responsável: o foco vai para o título.
-            headingRef.current?.focus();
+            focusHeading();
           }}
           onError={setActionError}
         />
