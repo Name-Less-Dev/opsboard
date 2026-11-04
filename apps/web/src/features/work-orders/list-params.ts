@@ -29,6 +29,8 @@ export type ListParams = {
 };
 
 export const MAX_QUERY_LENGTH = 100;
+/** Espera da busca: só vai para a URL depois de 300 ms sem digitar. */
+export const SEARCH_DEBOUNCE_MS = 300;
 export const MAX_PAGE_SIZE = 100;
 
 export const DEFAULT_LIST_PARAMS: ListParams = {

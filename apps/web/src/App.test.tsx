@@ -3,9 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { App } from './App';
-import { AuthProvider } from './features/auth/AuthProvider';
+import { AppProviders } from './AppProviders';
+import { createQueryClient } from './lib/query-client';
 import { getToken, setToken } from './lib/session';
 
+const EMPTY_PAGE = { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 };
 const user = { id: '1', name: 'Ana Operadora', email: 'ana@opsboard.dev', role: 'OPERATOR' };
 
 function json(body: unknown, status = 200): Response {
@@ -15,7 +17,8 @@ function json(body: unknown, status = 200): Response {
 // Só a rede é falsa: roteador, contexto, cliente HTTP e telas são os reais.
 function mockApi(routes: Record<string, () => Response>) {
   const fetchMock = vi.fn((path: string, _init?: RequestInit) => {
-    const handler = routes[path];
+    // Casa só o caminho, sem a query string.
+    const handler = routes[path.split('?')[0]];
     return Promise.resolve(handler ? handler() : json({ message: 'Não encontrado' }, 404));
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -30,10 +33,10 @@ function CurrentUrl() {
 function renderApp(initialPath: string) {
   render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <AuthProvider>
+      <AppProviders client={createQueryClient()}>
         <App />
         <CurrentUrl />
-      </AuthProvider>
+      </AppProviders>
     </MemoryRouter>,
   );
 }
@@ -57,14 +60,14 @@ describe('Autenticação', () => {
   it('login com sucesso volta para a página pedida e guarda o token', async () => {
     mockApi({
       '/api/auth/login': () => json({ accessToken: 'token-valido', user }),
-      '/api/health': () => json({ status: 'ok', database: 'up' }),
+      '/api/work-orders': () => json(EMPTY_PAGE),
     });
-    renderApp('/?filtro=1');
+    renderApp('/orders?status=OPEN');
 
     await fillAndSubmit('ana@opsboard.dev', 'opsboard123');
 
     expect(await screen.findByText('Ana Operadora')).toBeInTheDocument();
-    expect(screen.getByLabelText('url')).toHaveTextContent('/?filtro=1');
+    expect(screen.getByLabelText('url')).toHaveTextContent('/orders?status=OPEN');
     expect(getToken()).toBe('token-valido');
   });
 
@@ -109,7 +112,7 @@ describe('Autenticação', () => {
     setToken('token-salvo');
     const fetchMock = mockApi({
       '/api/auth/me': () => json(user),
-      '/api/health': () => json({ status: 'ok', database: 'up' }),
+      '/api/work-orders': () => json(EMPTY_PAGE),
     });
     renderApp('/');
 
@@ -133,7 +136,7 @@ describe('Autenticação', () => {
     setToken('token-salvo');
     mockApi({
       '/api/auth/me': () => json(user),
-      '/api/health': () => json({ status: 'ok', database: 'up' }),
+      '/api/work-orders': () => json(EMPTY_PAGE),
     });
     renderApp('/');
 
