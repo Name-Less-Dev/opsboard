@@ -1,3 +1,4 @@
+import { endOfLocalDayIso, startOfLocalDayIso, type LocalDate } from '../../lib/dates';
 import { PRIORITIES, STATUSES, type WorkOrderPriority, type WorkOrderStatus } from './labels';
 
 // A query string é a fonte da verdade da lista. Estas funções são o único lugar que conhece
@@ -7,9 +8,6 @@ export const SORT_FIELDS = ['createdAt', 'updatedAt', 'dueDate', 'priority'] as 
 export const SORT_ORDERS = ['asc', 'desc'] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
 export type SortOrder = (typeof SORT_ORDERS)[number];
-
-/** Data local no formato AAAA-MM-DD, como a do `<input type="date">`. */
-export type LocalDate = string;
 
 export type ListParams = {
   /** Sem espaços nas pontas; '' = sem busca. */
@@ -136,17 +134,6 @@ export function serializeListParams(params: ListParams): string {
     .join('&');
 }
 
-// `new Date(ano, mês, dia, ...)` interpreta no fuso do navegador; `toISOString` devolve o mesmo
-// instante em UTC, que é o que a API compara.
-function localDayBoundary(date: LocalDate, edge: 'start' | 'end'): string {
-  const [year, month, day] = date.split('-').map(Number);
-  const instant =
-    edge === 'start'
-      ? new Date(year, month - 1, day, 0, 0, 0, 0)
-      : new Date(year, month - 1, day, 23, 59, 59, 999);
-  return instant.toISOString();
-}
-
 /** Query de `GET /work-orders`. Paginação e ordenação vão sempre explícitas. */
 export function toApiQuery(params: ListParams): URLSearchParams {
   const query = new URLSearchParams();
@@ -155,8 +142,8 @@ export function toApiQuery(params: ListParams): URLSearchParams {
   if (params.priority.length) query.set('priority', params.priority.join(','));
   if (params.mine) query.set('assigneeId', 'me');
   if (params.overdue) query.set('overdue', 'true');
-  if (params.dueFrom) query.set('dueFrom', localDayBoundary(params.dueFrom, 'start'));
-  if (params.dueTo) query.set('dueTo', localDayBoundary(params.dueTo, 'end'));
+  if (params.dueFrom) query.set('dueFrom', startOfLocalDayIso(params.dueFrom));
+  if (params.dueTo) query.set('dueTo', endOfLocalDayIso(params.dueTo));
   query.set('page', String(params.page));
   query.set('pageSize', String(params.pageSize));
   query.set('sortBy', params.sortBy);
