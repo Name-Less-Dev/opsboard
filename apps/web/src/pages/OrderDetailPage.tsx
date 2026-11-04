@@ -131,7 +131,12 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
     setActionError(null);
     flash.dismiss();
     changeStatus.mutate(status, {
-      onSuccess: () => flash.setMessage(STATUS_SUCCESS[status] ?? 'Status atualizado.'),
+      onSuccess: () => {
+        flash.setMessage(STATUS_SUCCESS[status] ?? 'Status atualizado.');
+        // O botão clicado some (vira o próximo passo do fluxo): sem isso, o foco cairia no
+        // <body>. O aviso é anunciado pela região role="status".
+        headingRef.current?.focus();
+      },
       // Em 409 o hook já busca o detalhe de novo; aqui só a mensagem, pelo `code`.
       onError: (error) => setActionError(error),
       onSettled: () => setConfirmCancel(false),
@@ -275,6 +280,8 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
           onSuccess={() => {
             setActionError(null);
             flash.setMessage('Responsável atualizado.');
+            // O seletor é recriado com o novo responsável: o foco vai para o título.
+            headingRef.current?.focus();
           }}
           onError={setActionError}
         />
