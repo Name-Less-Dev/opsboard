@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista os usuários (id, nome e perfil), em ordem de nome */
+        get: operations["UsersController_findAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/work-orders": {
         parameters: {
             query?: never;
@@ -234,6 +251,16 @@ export interface components {
         LoginResponseDto: {
             accessToken: string;
             user: components["schemas"]["UserResponseDto"];
+        };
+        UserSummaryDto: {
+            /**
+             * Format: uuid
+             * @example 9cbbf785-9a72-4703-b484-0afd39d65703
+             */
+            id: string;
+            /** @example Ana Operadora */
+            name: string;
+            role: components["schemas"]["Role"];
         };
         /** @enum {string} */
         WorkOrderPriority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -488,6 +515,52 @@ export interface operations {
             };
             /** @description UNAUTHORIZED: token ausente, inválido ou expirado */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    UsersController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummaryDto"][];
+                };
+            };
+            /** @description UNAUTHORIZED: token ausente, inválido ou expirado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

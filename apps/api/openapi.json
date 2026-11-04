@@ -162,6 +162,66 @@
         ]
       }
     },
+    "/users": {
+      "get": {
+        "operationId": "UsersController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserSummaryDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Lista os usuários (id, nome e perfil), em ordem de nome",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/work-orders": {
       "post": {
         "description": "Operador vira o responsável; enviar outro responsável retorna 403.",
@@ -1146,6 +1206,32 @@
         "required": [
           "accessToken",
           "user"
+        ]
+      },
+      "UserSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "9cbbf785-9a72-4703-b484-0afd39d65703"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ana Operadora"
+          },
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
         ]
       },
       "WorkOrderPriority": {

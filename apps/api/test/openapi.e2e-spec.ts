@@ -59,6 +59,7 @@ describe('Documento OpenAPI (e2e)', () => {
       ).sort();
     expect(statuses('/auth/login', 'post')).toEqual(['200', '400', '401', '429', '500']);
     expect(statuses('/health', 'get')).toEqual(['200', '500', '503']);
+    expect(statuses('/users', 'get')).toEqual(['200', '401', '403', '500']);
     expect(statuses('/work-orders/{id}/status', 'patch')).toEqual(
       ['200', '400', '401', '403', '404', '409', '500'].sort(),
     );

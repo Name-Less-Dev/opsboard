@@ -10,6 +10,9 @@ export type PublicUser = {
   role: Role;
 };
 
+/** O que `GET /users` devolve: o mínimo para escolher um responsável. */
+export type UserSummary = Pick<PublicUser, 'id' | 'name' | 'role'>;
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -24,6 +27,14 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: { id },
       select: { id: true, name: true, email: true, role: true },
+    });
+  }
+
+  // Desempate por id: dois usuários com o mesmo nome saem sempre na mesma ordem.
+  findAll(): Promise<UserSummary[]> {
+    return this.prisma.user.findMany({
+      select: { id: true, name: true, role: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
   }
 }

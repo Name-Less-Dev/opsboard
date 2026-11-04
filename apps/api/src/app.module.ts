@@ -11,6 +11,7 @@ import { requestIdMiddleware } from './common/request-id/request-id';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     ClockModule,
     HealthModule,
     AuthModule,
+    UsersModule,
     WorkOrdersModule,
     DashboardModule,
   ],
