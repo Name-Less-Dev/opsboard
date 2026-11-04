@@ -70,13 +70,22 @@ describe('Autenticação', () => {
 
   it('login com erro mostra a mensagem e continua na tela de login', async () => {
     mockApi({
-      '/api/auth/login': () => json({ message: 'Credenciais inválidas' }, 401),
+      '/api/auth/login': () =>
+        json(
+          {
+            statusCode: 401,
+            code: 'UNAUTHORIZED',
+            message: 'Credenciais inválidas',
+            requestId: 'r1',
+          },
+          401,
+        ),
     });
     renderApp('/login');
 
     await fillAndSubmit('ana@opsboard.dev', 'errada');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Credenciais inválidas.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha inválidos.');
     expect(screen.getByLabelText('url')).toHaveTextContent('/login');
     expect(getToken()).toBeNull();
     // O foco volta para a senha, e o botão sai do estado de carregamento.

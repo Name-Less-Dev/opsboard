@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../features/auth/auth-context';
-import { ApiError } from '../lib/api';
+import { errorMessage, LOGIN_ERROR_MESSAGES } from '../lib/error-messages';
 
 type FieldErrors = {
   email?: string;
@@ -17,11 +17,6 @@ function validate(email: string, password: string): FieldErrors {
   else if (!EMAIL_PATTERN.test(email)) errors.email = 'Informe um e-mail válido.';
   if (!password) errors.password = 'Informe a senha.';
   return errors;
-}
-
-function describeLoginError(error: unknown): string {
-  if (error instanceof ApiError && error.status === 401) return 'Credenciais inválidas.';
-  return 'Não foi possível entrar. Tente novamente.';
 }
 
 export function LoginPage() {
@@ -65,7 +60,7 @@ export function LoginPage() {
       await login(email, password);
       // O sucesso muda o status para "authenticated" e o <Navigate> acima redireciona.
     } catch (error) {
-      setFormError(describeLoginError(error));
+      setFormError(errorMessage(error, LOGIN_ERROR_MESSAGES));
       passwordRef.current?.focus();
     } finally {
       setSubmitting(false);

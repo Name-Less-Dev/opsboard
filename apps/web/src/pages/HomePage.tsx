@@ -9,7 +9,7 @@ type HealthResponse = {
 type HealthState = { kind: 'loading' } | { kind: 'ok' } | { kind: 'error'; message: string };
 
 function describeError(error: unknown): string {
-  if (error instanceof ApiError) return `${error.message} (HTTP ${error.status})`;
+  if (error instanceof ApiError) return `${error.message} (HTTP ${error.statusCode})`;
   if (error instanceof Error) return error.message;
   return 'Erro desconhecido';
 }
