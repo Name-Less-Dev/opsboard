@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../components/Button';
+import { buttonClass } from '../components/button-styles';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { Pagination } from '../components/Pagination';
@@ -69,7 +71,12 @@ export function OrdersPage() {
 
   return (
     <main className="space-y-4">
-      <h1 className="text-2xl font-semibold">Ordens de serviço</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Ordens de serviço</h1>
+        <Link to="/orders/new" className={buttonClass('primary', 'md')}>
+          Nova ordem
+        </Link>
+      </div>
 
       <FlashMessage message={flash.message} onDismiss={flash.dismiss} />
 
