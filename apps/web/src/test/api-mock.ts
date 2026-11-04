@@ -13,6 +13,27 @@ export const USER: AuthUser = {
   role: 'OPERATOR',
 };
 
+export const SUPERVISOR: AuthUser = {
+  id: '33333333-3333-4333-8333-333333333333',
+  name: 'Carla Supervisora',
+  email: 'carla@opsboard.dev',
+  role: 'SUPERVISOR',
+};
+
+export const OTHER_OPERATOR: AuthUser = {
+  id: '22222222-2222-4222-8222-222222222222',
+  name: 'Bruno Operador',
+  email: 'bruno@opsboard.dev',
+  role: 'OPERATOR',
+};
+
+/** O que `GET /users` devolve: só id, nome e perfil, em ordem de nome. */
+export const USERS = [USER, OTHER_OPERATOR, SUPERVISOR].map(({ id, name, role }) => ({
+  id,
+  name,
+  role,
+}));
+
 export const server = setupServer(http.get('/api/auth/me', () => HttpResponse.json(USER)));
 
 let sequence = 0;
