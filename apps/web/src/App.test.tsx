@@ -63,7 +63,7 @@ describe('Autenticação', () => {
 
     await fillAndSubmit('ana@opsboard.dev', 'opsboard123');
 
-    expect(await screen.findByText('Ana Operadora (Operador)')).toBeInTheDocument();
+    expect(await screen.findByText('Ana Operadora')).toBeInTheDocument();
     expect(screen.getByLabelText('url')).toHaveTextContent('/?filtro=1');
     expect(getToken()).toBe('token-valido');
   });
@@ -113,7 +113,7 @@ describe('Autenticação', () => {
     });
     renderApp('/');
 
-    expect(await screen.findByText('Ana Operadora (Operador)')).toBeInTheDocument();
+    expect(await screen.findByText('Ana Operadora')).toBeInTheDocument();
     const init = fetchMock.mock.calls[0]?.[1];
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer token-salvo');
   });

@@ -68,15 +68,23 @@ export function LoginPage() {
   }
 
   return (
-    <main className="login">
-      <h1>OpsBoard</h1>
+    <main className="mx-auto mt-16 max-w-sm px-gutter">
+      <h1 className="mb-6 text-2xl font-semibold">OpsBoard</h1>
       {/* noValidate: as mensagens vêm do nosso validate, em pt-BR e ligadas a cada campo. */}
-      <form onSubmit={(event) => void handleSubmit(event)} noValidate aria-label="Entrar">
-        <div className="field">
-          <label htmlFor="email">E-mail</label>
+      <form
+        className="space-y-4 rounded-card border border-border bg-surface p-6"
+        onSubmit={(event) => void handleSubmit(event)}
+        noValidate
+        aria-label="Entrar"
+      >
+        <div>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            E-mail
+          </label>
           <input
             ref={emailRef}
             id="email"
+            className="w-full rounded-control border border-border bg-surface px-3 py-2 aria-[invalid=true]:border-danger"
             type="email"
             autoComplete="username"
             autoFocus
@@ -86,17 +94,20 @@ export function LoginPage() {
             aria-describedby={fieldErrors.email ? 'email-error' : undefined}
           />
           {fieldErrors.email && (
-            <p id="email-error" className="field-error">
+            <p id="email-error" className="mt-1 text-sm text-danger">
               {fieldErrors.email}
             </p>
           )}
         </div>
 
-        <div className="field">
-          <label htmlFor="password">Senha</label>
+        <div>
+          <label htmlFor="password" className="mb-1 block text-sm font-medium">
+            Senha
+          </label>
           <input
             ref={passwordRef}
             id="password"
+            className="w-full rounded-control border border-border bg-surface px-3 py-2 aria-[invalid=true]:border-danger"
             type="password"
             autoComplete="current-password"
             value={password}
@@ -105,19 +116,26 @@ export function LoginPage() {
             aria-describedby={fieldErrors.password ? 'password-error' : undefined}
           />
           {fieldErrors.password && (
-            <p id="password-error" className="field-error">
+            <p id="password-error" className="mt-1 text-sm text-danger">
               {fieldErrors.password}
             </p>
           )}
         </div>
 
         {formError && (
-          <p className="status status-error" role="alert">
+          <p
+            className="rounded-control border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger"
+            role="alert"
+          >
             {formError}
           </p>
         )}
 
-        <button type="submit" disabled={submitting}>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full rounded-control bg-primary px-4 py-2 font-medium text-on-primary hover:bg-primary-hover disabled:opacity-60"
+        >
           {submitting ? 'Entrando…' : 'Entrar'}
         </button>
       </form>

@@ -1,85 +1,130 @@
-:root {
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  color: #1f2933;
-  background: #f5f7fa;
+@import 'tailwindcss';
+
+/*
+ * Tokens de tema. As cores ficam em variáveis CSS trocadas pelo atributo data-theme do <html>
+ * (definido antes do React no index.html, sem piscar). O `@theme inline` expõe as variáveis
+ * como utilitários do Tailwind (`bg-surface`, `text-muted`...), então os componentes não usam
+ * `dark:`: trocar o tema só troca o valor das variáveis.
+ *
+ * Contraste: texto e texto secundário passam de 4,5:1 sobre o fundo e a superfície nos dois
+ * temas (WCAG AA); os selos usam fundo claro com texto escuro (ou o inverso no escuro).
+ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-muted: #eef1f4;
+  --border: #d3d9e0;
+  --text: #17202b;
+  --text-muted: #4a5767;
+  --primary: #1d4ed8;
+  --primary-hover: #1e40af;
+  --on-primary: #ffffff;
+  --focus: #2563eb;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
+  --danger-border: #fecdca;
+
+  --tone-neutral-bg: #eceff3;
+  --tone-neutral-fg: #364152;
+  --tone-info-bg: #e0ecff;
+  --tone-info-fg: #1e3a8a;
+  --tone-warning-bg: #fef0c7;
+  --tone-warning-fg: #7a2e0e;
+  --tone-success-bg: #dcfae6;
+  --tone-success-fg: #085d3a;
+  --tone-danger-bg: #fee4e2;
+  --tone-danger-fg: #912018;
 }
 
-body {
-  margin: 0;
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e131a;
+  --surface: #161d26;
+  --surface-muted: #1e2732;
+  --border: #334152;
+  --text: #e7ebf0;
+  --text-muted: #a9b4c2;
+  --primary: #93c5fd;
+  --primary-hover: #bfdbfe;
+  --on-primary: #0b1526;
+  --focus: #93c5fd;
+  --danger: #fda29b;
+  --danger-bg: #2a1614;
+  --danger-border: #7a271a;
+
+  --tone-neutral-bg: #2a3441;
+  --tone-neutral-fg: #dde3ea;
+  --tone-info-bg: #1b3358;
+  --tone-info-fg: #c7dcff;
+  --tone-warning-bg: #4a2c08;
+  --tone-warning-fg: #fedf89;
+  --tone-success-bg: #0f3d27;
+  --tone-success-fg: #a6f4c5;
+  --tone-danger-bg: #55160c;
+  --tone-danger-fg: #fecdca;
 }
 
-.home {
-  max-width: 40rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-focus: var(--focus);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-tone-neutral-bg: var(--tone-neutral-bg);
+  --color-tone-neutral-fg: var(--tone-neutral-fg);
+  --color-tone-info-bg: var(--tone-info-bg);
+  --color-tone-info-fg: var(--tone-info-fg);
+  --color-tone-warning-bg: var(--tone-warning-bg);
+  --color-tone-warning-fg: var(--tone-warning-fg);
+  --color-tone-success-bg: var(--tone-success-bg);
+  --color-tone-success-fg: var(--tone-success-fg);
+  --color-tone-danger-bg: var(--tone-danger-bg);
+  --color-tone-danger-fg: var(--tone-danger-fg);
 }
 
-.subtitle {
-  color: #52606d;
+/* Espaçamentos e raios do layout (`px-gutter`, `max-w-content`, `rounded-card`). */
+@theme {
+  --spacing-gutter: 1rem;
+  --container-content: 80rem;
+  --radius-card: 0.5rem;
+  --radius-control: 0.375rem;
 }
 
-.status {
-  display: inline-block;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  background: #e4e7eb;
-}
+@layer base {
+  body {
+    @apply bg-bg text-text antialiased;
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+  }
 
-.status-ok {
-  background: #e3f9e5;
-  color: #05400a;
-}
+  /* Foco visível só para teclado, igual em todo controle. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
 
-.status-error {
-  background: #ffe3e3;
-  color: #610404;
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: #fff;
-  border-bottom: 1px solid #e4e7eb;
-}
-
-.app-header-user {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.login {
-  max-width: 22rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
-}
-
-.field {
-  margin-bottom: 1rem;
-}
-
-.field label {
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.field input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 0.5rem;
-  font: inherit;
-}
-
-.field-error {
-  margin: 0.25rem 0 0;
-  color: #610404;
-  font-size: 0.875rem;
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
