@@ -332,6 +332,29 @@ describe('Lista de ordens (/orders)', () => {
     expect(url()).toBe('/orders?priority=URGENT&overdue=true&sortBy=priority&order=asc');
   });
 
+  it('no celular, o botão "Filtros" mostra quantos estão ativos e abre o painel', async () => {
+    mockWorkOrders(() => HttpResponse.json(makePage([makeOrder()])));
+    renderAt('/orders?status=OPEN&overdue=true&q=x');
+
+    const toggle = await screen.findByRole('button', { name: 'Filtros (2)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ocultar filtros (2)' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('com erro no prazo, o painel de filtros abre sozinho', async () => {
+    mockWorkOrders(() => HttpResponse.json(makePage([makeOrder()])));
+    renderAt('/orders?dueFrom=2026-12-01&dueTo=2026-11-01');
+
+    expect(await screen.findByRole('button', { name: 'Ocultar filtros (2)' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
   it('o título leva ao detalhe provisório, que volta para a lista com os mesmos filtros', async () => {
     mockWorkOrders(() => HttpResponse.json(makePage([makeOrder({ title: 'Porta travando' })])));
     renderAt('/orders?status=OPEN&sortBy=dueDate');
