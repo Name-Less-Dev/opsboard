@@ -17,7 +17,8 @@ export const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   INTERNAL_ERROR: 'Ocorreu um erro inesperado no servidor.',
   SERVICE_UNAVAILABLE: 'O serviço está indisponível no momento. Tente de novo em instantes.',
   NETWORK_ERROR: 'Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.',
-  BAD_RESPONSE: 'O servidor não respondeu como esperado. Tente de novo em instantes.',
+  // Resposta fora do formato da API: quem respondeu foi o proxy (API fora do ar ou reiniciando).
+  BAD_RESPONSE: 'Não foi possível falar com o servidor. Tente de novo em instantes.',
 };
 
 export const DEFAULT_ERROR_MESSAGE = 'Algo deu errado. Tente de novo.';

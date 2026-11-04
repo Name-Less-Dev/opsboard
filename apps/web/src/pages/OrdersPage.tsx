@@ -1,22 +1,41 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '../components/Button';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { Pagination } from '../components/Pagination';
+import { Spinner } from '../components/Spinner';
+import type { WorkOrderPage } from '../features/work-orders/labels';
 import {
   clearFilters,
+  hasActiveFilters,
+  isDueRangeInvalid,
   withFilters,
   withPage,
   type ListFilters,
+  type ListParams,
 } from '../features/work-orders/list-params';
 import { useListParams } from '../features/work-orders/use-list-params';
 import { useWorkOrders } from '../features/work-orders/use-work-orders';
 import { WorkOrderFilters } from '../features/work-orders/WorkOrderFilters';
 import { WorkOrderList } from '../features/work-orders/WorkOrderList';
-import { errorMessage } from '../lib/error-messages';
+import { WorkOrderListSkeleton } from '../features/work-orders/WorkOrderListSkeleton';
+
+/** Última resposta que deu certo, com os filtros e o instante em que foi buscada. */
+type Shown = { page: WorkOrderPage; params: ListParams; fetchedAt: number };
 
 export function OrdersPage() {
   const [params, setParams] = useListParams();
   const query = useWorkOrders(params);
   const { data, isPlaceholderData } = query;
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // O `data` do TanStack Query some quando a requisição falha. Guardar a última resposta boa
+  // permite manter a lista na tela durante o erro, em vez de apagá-la. Atualizar o estado
+  // durante a renderização (e não num efeito) evita um quadro com o valor antigo.
+  const [shown, setShown] = useState<Shown | null>(null);
+  if (data && !isPlaceholderData && data !== shown?.page) {
+    setShown({ page: data, params, fetchedAt: query.dataUpdatedAt });
+  }
 
   // Página além do fim (a API devolve lista vazia, mas diz quantas páginas existem): vai para
   // a última que existe, com `replace` para o "voltar" não cair de novo na página vazia.
@@ -38,38 +57,86 @@ export function OrdersPage() {
     headingRef.current?.focus({ preventScroll: true });
   }
 
+  const clear = () => setParams(clearFilters(params));
+  // Já há algo na tela e outra requisição está a caminho (filtro, página ou nova tentativa).
+  const updating = shown !== null && query.isFetching;
+  const firstLoad = shown === null && query.isPending && !isDueRangeInvalid(params);
+
   return (
     <main className="space-y-4">
       <h1 className="text-2xl font-semibold">Ordens de serviço</h1>
 
-      <WorkOrderFilters
-        params={params}
-        onChange={changeFilters}
-        onClear={() => setParams(clearFilters(params))}
-      />
+      <WorkOrderFilters params={params} onChange={changeFilters} onClear={clear} />
 
-      <section aria-labelledby="results-title" className="space-y-4">
-        {/* Alvo do foco ao trocar de página: fica logo acima da lista, não dos filtros. */}
-        <h2
-          id="results-title"
-          ref={headingRef}
-          tabIndex={-1}
-          className="scroll-mt-4 text-lg font-semibold outline-none"
-        >
-          Resultados
-        </h2>
-        {query.isError && <p role="alert">{errorMessage(query.error)}</p>}
-        {!data && query.isPending && <p>Carregando…</p>}
-        {data && (
-          <>
-            <WorkOrderList orders={data.items} now={new Date(query.dataUpdatedAt)} />
+      <section
+        aria-labelledby="results-title"
+        aria-busy={updating || firstLoad}
+        className="space-y-4"
+      >
+        <div className="flex min-h-7 items-center justify-between gap-4">
+          {/* Alvo do foco ao trocar de página: fica logo acima da lista, não dos filtros. */}
+          <h2
+            id="results-title"
+            ref={headingRef}
+            tabIndex={-1}
+            className="scroll-mt-4 text-lg font-semibold outline-none"
+          >
+            Resultados
+          </h2>
+          {updating && (
+            <span className="inline-flex items-center gap-2 text-sm text-muted">
+              <Spinner />
+              Atualizando…
+            </span>
+          )}
+        </div>
+
+        {query.isError && (
+          <ErrorState
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+          />
+        )}
+
+        {firstLoad && <WorkOrderListSkeleton />}
+
+        {shown && shown.page.total === 0 && !query.isError && (
+          // Os filtros decidem a mensagem: sem filtro, não há ordem nenhuma. Num erro o vazio
+          // anterior some (não há dado a preservar, e o texto poderia não valer mais).
+          // Sem botão de "Nova ordem": a criação ainda não existe (Dia 7).
+          <EmptyState
+            {...(hasActiveFilters(shown.params)
+              ? {
+                  title: 'Nenhuma ordem encontrada com esses filtros.',
+                  description: 'Tente mudar a busca ou limpar os filtros.',
+                  action: (
+                    <Button size="sm" onClick={clear}>
+                      Limpar filtros
+                    </Button>
+                  ),
+                }
+              : {
+                  title: 'Nenhuma ordem de serviço cadastrada ainda.',
+                  description: 'Quando houver ordens, elas aparecem aqui.',
+                })}
+          />
+        )}
+
+        {shown && shown.page.total > 0 && (
+          // Atualizando: os dados anteriores ficam, só mais apagados, sem trocar por skeleton.
+          <div
+            className={`space-y-4 transition-opacity ${updating ? 'opacity-60' : 'opacity-100'}`}
+          >
+            <WorkOrderList orders={shown.page.items} now={new Date(shown.fetchedAt)} />
             <Pagination
-              page={data.page}
-              totalPages={data.totalPages}
-              total={data.total}
+              page={shown.page.page}
+              totalPages={shown.page.totalPages}
+              total={shown.page.total}
               onPageChange={changePage}
+              disabled={updating}
             />
-          </>
+          </div>
         )}
       </section>
     </main>
