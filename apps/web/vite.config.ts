@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Fuso fixo para a conversão de datas locais ter resultado conhecido em qualquer máquina.
+    env: { TZ: 'America/Sao_Paulo' },
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
