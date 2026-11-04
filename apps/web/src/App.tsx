@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 import { AuthenticatedLayout } from './components/AuthenticatedLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { EditOrderPage } from './pages/EditOrderPage';
 import { LoginPage } from './pages/LoginPage';
 import { NewOrderPage } from './pages/NewOrderPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
@@ -16,6 +17,7 @@ export function App() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/new" element={<NewOrderPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="orders/:id/edit" element={<EditOrderPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
