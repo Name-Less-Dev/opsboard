@@ -27,7 +27,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={nextLabel}
       title={nextLabel}
-      className="inline-flex items-center gap-2 rounded-control border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-surface-muted"
+      className="inline-flex items-center gap-2 rounded-control border border-control-border px-2.5 py-1.5 text-sm font-medium hover:bg-surface-muted"
     >
       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       <span className="hidden md:inline">{nextLabel}</span>

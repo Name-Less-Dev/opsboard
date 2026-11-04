@@ -19,6 +19,7 @@ import { useWorkOrders } from '../features/work-orders/use-work-orders';
 import { WorkOrderFilters } from '../features/work-orders/WorkOrderFilters';
 import { WorkOrderList } from '../features/work-orders/WorkOrderList';
 import { WorkOrderListSkeleton } from '../features/work-orders/WorkOrderListSkeleton';
+import { formatCount } from '../lib/format';
 
 /** Última resposta que deu certo, com os filtros e o instante em que foi buscada. */
 type Shown = { page: WorkOrderPage; params: ListParams; fetchedAt: number };
@@ -90,6 +91,14 @@ export function OrdersPage() {
             </span>
           )}
         </div>
+
+        {/* Sempre no DOM: a região precisa existir antes de o texto mudar para ser anunciada.
+            Fica vazia enquanto atualiza, então cada resultado novo é anunciado. */}
+        <p aria-live="polite" className="sr-only">
+          {shown && !updating
+            ? formatCount(shown.page.total, 'ordem encontrada', 'ordens encontradas')
+            : ''}
+        </p>
 
         {query.isError && (
           <ErrorState

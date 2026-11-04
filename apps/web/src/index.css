@@ -8,6 +8,8 @@
  *
  * Contraste: texto e texto secundário passam de 4,5:1 sobre o fundo e a superfície nos dois
  * temas (WCAG AA); os selos usam fundo claro com texto escuro (ou o inverso no escuro).
+ * `--border` é decorativa (cards, divisórias); campos usam `--control-border`, com pelo menos
+ * 3:1 sobre o fundo (WCAG 1.4.11), porque a borda é o que mostra onde o campo está.
  */
 :root,
 [data-theme='light'] {
@@ -16,6 +18,7 @@
   --surface: #ffffff;
   --surface-muted: #eef1f4;
   --border: #d3d9e0;
+  --control-border: #7b8797;
   --text: #17202b;
   --text-muted: #4a5767;
   --primary: #1d4ed8;
@@ -44,6 +47,7 @@
   --surface: #161d26;
   --surface-muted: #1e2732;
   --border: #334152;
+  --control-border: #6f7d8f;
   --text: #e7ebf0;
   --text-muted: #a9b4c2;
   --primary: #93c5fd;
@@ -71,6 +75,7 @@
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-border: var(--border);
+  --color-control-border: var(--control-border);
   --color-text: var(--text);
   --color-muted: var(--text-muted);
   --color-primary: var(--primary);

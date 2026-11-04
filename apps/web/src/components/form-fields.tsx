@@ -4,7 +4,7 @@ import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttribu
 // por aria-describedby, para o leitor de tela ler a mensagem junto.
 
 const controlClass =
-  'w-full rounded-control border border-border bg-surface px-3 py-2 text-sm aria-[invalid=true]:border-danger';
+  'w-full rounded-control border border-control-border bg-surface px-3 py-2 text-sm aria-[invalid=true]:border-danger';
 
 type FieldShellProps = {
   id: string;
@@ -79,7 +79,7 @@ export function Checkbox({ label, ...props }: CheckboxProps) {
   const id = useId();
   return (
     <div className="flex items-center gap-2">
-      <input id={id} type="checkbox" className="size-4 accent-primary" {...props} />
+      <input id={id} type="checkbox" className="size-4 shrink-0 accent-primary" {...props} />
       <label htmlFor={id} className="text-sm">
         {label}
       </label>

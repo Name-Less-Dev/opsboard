@@ -84,7 +84,7 @@ export function LoginPage() {
           <input
             ref={emailRef}
             id="email"
-            className="w-full rounded-control border border-border bg-surface px-3 py-2 aria-[invalid=true]:border-danger"
+            className="w-full rounded-control border border-control-border bg-surface px-3 py-2 aria-[invalid=true]:border-danger"
             type="email"
             autoComplete="username"
             autoFocus
@@ -107,7 +107,7 @@ export function LoginPage() {
           <input
             ref={passwordRef}
             id="password"
-            className="w-full rounded-control border border-border bg-surface px-3 py-2 aria-[invalid=true]:border-danger"
+            className="w-full rounded-control border border-control-border bg-surface px-3 py-2 aria-[invalid=true]:border-danger"
             type="password"
             autoComplete="current-password"
             value={password}
