@@ -11,7 +11,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/**/*.d.ts'],
-      // Global modesto (proposta do Dia 5, aguardando aprovação): só pega quedas grandes.
+      // Global modesto (aprovado no Dia 5): só pega quedas grandes.
       thresholds: { statements: 80, branches: 70, functions: 80, lines: 80 },
     },
   },
