@@ -355,16 +355,20 @@ describe('Lista de ordens (/orders)', () => {
     );
   });
 
-  it('o título leva ao detalhe provisório, que volta para a lista com os mesmos filtros', async () => {
-    mockWorkOrders(() => HttpResponse.json(makePage([makeOrder({ title: 'Porta travando' })])));
+  it('o título leva ao detalhe, que volta para a lista com os mesmos filtros', async () => {
+    const order = makeOrder({ title: 'Porta travando' });
+    mockWorkOrders(() => HttpResponse.json(makePage([order])));
+    server.use(http.get('/api/work-orders/:id', () => HttpResponse.json(order)));
     renderAt('/orders?status=OPEN&sortBy=dueDate');
     await expectPagination('Página 1 de 1');
 
     await userEvent.click(within(table()).getByRole('link', { name: 'Porta travando' }));
 
-    expect(screen.getByRole('heading', { name: 'Detalhe em construção' })).toBeInTheDocument();
-    expect(url()).toMatch(/^\/orders\/[0-9a-f-]+$/);
-    await userEvent.click(screen.getByRole('link', { name: 'Voltar para a lista' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Porta travando' }),
+    ).toBeInTheDocument();
+    expect(url()).toBe(`/orders/${order.id}`);
+    await userEvent.click(screen.getByRole('link', { name: '← Voltar para a lista' }));
     expect(url()).toBe('/orders?status=OPEN&sortBy=dueDate');
   });
 
