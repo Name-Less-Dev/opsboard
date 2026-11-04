@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { Pagination } from '../components/Pagination';
+import { FlashMessage } from '../components/FlashMessage';
 import { Spinner } from '../components/Spinner';
 import type { WorkOrderPage } from '../features/work-orders/labels';
 import {
@@ -20,6 +21,7 @@ import { WorkOrderFilters } from '../features/work-orders/WorkOrderFilters';
 import { WorkOrderList } from '../features/work-orders/WorkOrderList';
 import { WorkOrderListSkeleton } from '../features/work-orders/WorkOrderListSkeleton';
 import { formatCount } from '../lib/format';
+import { useFlash } from '../lib/use-flash';
 
 /** Última resposta que deu certo, com os filtros e o instante em que foi buscada. */
 type Shown = { page: WorkOrderPage; params: ListParams; fetchedAt: number };
@@ -29,6 +31,8 @@ export function OrdersPage() {
   const query = useWorkOrders(params);
   const { data, isPlaceholderData } = query;
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Aviso vindo de outra tela (ex.: "Ordem excluída.").
+  const flash = useFlash();
 
   // O `data` do TanStack Query some quando a requisição falha. Guardar a última resposta boa
   // permite manter a lista na tela durante o erro, em vez de apagá-la. Atualizar o estado
@@ -66,6 +70,8 @@ export function OrdersPage() {
   return (
     <main className="space-y-4">
       <h1 className="text-2xl font-semibold">Ordens de serviço</h1>
+
+      <FlashMessage message={flash.message} onDismiss={flash.dismiss} />
 
       <WorkOrderFilters params={params} onChange={changeFilters} onClear={clear} />
 

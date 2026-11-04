@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { OverdueBadge, PriorityBadge, StatusBadge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { buttonClass } from '../components/button-styles';
@@ -17,11 +17,15 @@ import {
 } from '../features/work-orders/labels';
 import { isOverdue } from '../features/work-orders/overdue';
 import { getAvailableActions } from '../features/work-orders/permissions';
-import { useChangeStatus, useWorkOrder } from '../features/work-orders/use-work-order';
+import {
+  useChangeStatus,
+  useDeleteWorkOrder,
+  useWorkOrder,
+} from '../features/work-orders/use-work-order';
 import { ApiError } from '../lib/api';
 import { errorMessage } from '../lib/error-messages';
 import { formatDateTime } from '../lib/format';
-import { useFlash } from '../lib/use-flash';
+import { useFlash, type FlashState } from '../lib/use-flash';
 
 /** Busca da lista guardada ao abrir o detalhe, para "voltar" com os mesmos filtros. */
 export type ListReturnState = { listSearch?: string };
@@ -110,14 +114,17 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
   const location = useLocation();
   const flash = useFlash();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const navigate = useNavigate();
   const changeStatus = useChangeStatus(order.id);
+  const remove = useDeleteWorkOrder(order.id);
   const [actionError, setActionError] = useState<unknown>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!user) return null;
   const actions = getAvailableActions(user, order);
   const final = order.status === 'DONE' || order.status === 'CANCELLED';
-  const busy = changeStatus.isPending;
+  const busy = changeStatus.isPending || remove.isPending;
   const pendingStatus = changeStatus.isPending ? changeStatus.variables : undefined;
 
   function runStatus(status: WorkOrderStatus) {
@@ -128,6 +135,21 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
       // Em 409 o hook já busca o detalhe de novo; aqui só a mensagem, pelo `code`.
       onError: (error) => setActionError(error),
       onSettled: () => setConfirmCancel(false),
+    });
+  }
+
+  function runDelete() {
+    setActionError(null);
+    remove.mutate(undefined, {
+      onSuccess: () => {
+        const listSearch = (location.state as ListReturnState | null)?.listSearch ?? '';
+        const state: FlashState = { flash: 'Ordem excluída.' };
+        void navigate(`/orders${listSearch}`, { state });
+      },
+      onError: (error) => {
+        setConfirmDelete(false);
+        setActionError(error);
+      },
     });
   }
 
@@ -157,6 +179,7 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
         <p className="rounded-card border border-border bg-surface-muted px-4 py-3 text-sm">
           Esta ordem está {STATUS_LABELS[order.status].toLowerCase()} e é somente leitura: não pode
           mais ser editada, mudar de status nem trocar de responsável.
+          {actions.delete && ' Um supervisor ainda pode excluí-la.'}
         </p>
       )}
 
@@ -203,6 +226,16 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
               onClick={() => setConfirmCancel(true)}
             >
               Cancelar ordem
+            </Button>
+          )}
+          {actions.delete && (
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={busy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Excluir ordem
             </Button>
           )}
         </div>
@@ -261,6 +294,19 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
           A ordem “{order.title}” passa para Cancelada e não poderá mais ser editada, mudar de
           status nem trocar de responsável.
         </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Excluir esta ordem?"
+        confirmLabel="Excluir ordem"
+        pendingLabel="Excluindo…"
+        pending={remove.isPending}
+        onConfirm={runDelete}
+        onClose={() => setConfirmDelete(false)}
+        returnFocusFallback={headingRef}
+      >
+        <p>A ordem “{order.title}” será excluída de vez, junto com todo o histórico dela.</p>
+        <p>Não dá para desfazer.</p>
       </ConfirmDialog>
     </article>
   );
