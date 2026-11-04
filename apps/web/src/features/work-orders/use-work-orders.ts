@@ -5,9 +5,12 @@ import { isDueRangeInvalid, toApiQuery, type ListParams } from './list-params';
 
 export const workOrderKeys = {
   all: ['work-orders'] as const,
+  /** Prefixo de todas as páginas da lista, com quaisquer filtros: é o que se invalida. */
+  lists: () => [...workOrderKeys.all, 'list'] as const,
   // Os próprios filtros são a chave: o TanStack Query compara por valor, e `status` e
   // `priority` já vêm normalizados (ordem do enum), então URLs equivalentes dividem o cache.
-  list: (params: ListParams) => [...workOrderKeys.all, 'list', params] as const,
+  list: (params: ListParams) => [...workOrderKeys.lists(), params] as const,
+  detail: (id: string) => [...workOrderKeys.all, 'detail', id] as const,
 };
 
 export function useWorkOrders(params: ListParams) {

@@ -121,6 +121,8 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     }
     throw await toApiError(response);
   }
+  // 204 (DELETE) não tem corpo: `response.json()` lançaria erro.
+  if (response.status === 204) return undefined as T;
   // O tipo T é uma promessa do chamador sobre o formato da resposta;
   // validação em runtime (ex.: zod) fica para quando houver dados de usuário.
   return (await response.json()) as T;
@@ -130,10 +132,18 @@ export function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   return request<T>(path, { signal });
 }
 
+function withJsonBody(method: 'POST' | 'PATCH', body: unknown): RequestInit {
+  return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+}
+
 export function apiPost<T>(path: string, body: unknown): Promise<T> {
-  return request<T>(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  return request<T>(path, withJsonBody('POST', body));
+}
+
+export function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, withJsonBody('PATCH', body));
+}
+
+export function apiDelete(path: string): Promise<void> {
+  return request<void>(path, { method: 'DELETE' });
 }

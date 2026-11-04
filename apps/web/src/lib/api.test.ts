@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiGet, setUnauthorizedHandler } from './api';
+import { ApiError, apiDelete, apiGet, apiPatch, setUnauthorizedHandler } from './api';
 import { getToken, setToken } from './session';
 
 const REQUEST_ID = '0b6d2a4e-3f1c-4d9a-8e7b-5c2f1a0d9e8b';
@@ -136,5 +136,23 @@ describe('apiGet', () => {
     respondWith(errorResponse(401, { statusCode: 401, code: 'UNAUTHORIZED', message: 'x' }));
     await caught(apiGet('/auth/login'));
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('PATCH envia JSON com o método certo', async () => {
+    const fetchMock = respondWith(new Response(JSON.stringify({ id: '1' })));
+    await expect(apiPatch('/work-orders/1/status', { status: 'DONE' })).resolves.toEqual({
+      id: '1',
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/work-orders/1/status');
+    expect(init.method).toBe('PATCH');
+    expect(init.body).toBe('{"status":"DONE"}');
+    expect(new Headers(init.headers).get('Content-Type')).toBe('application/json');
+  });
+
+  it('DELETE com 204 resolve sem ler corpo', async () => {
+    const fetchMock = respondWith(new Response(null, { status: 204 }));
+    await expect(apiDelete('/work-orders/1')).resolves.toBeUndefined();
+    expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].method).toBe('DELETE');
   });
 });
