@@ -5,9 +5,9 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 
 > **Status:** em construção. Hoje existem a infraestrutura (Docker, banco, migrations, seed),
 > o login com JWT e dois perfis, a proteção de rotas na API e no front, a API de ordens de serviço
-> com fluxo de status e registro de eventos, e a tela de lista de ordens com busca, filtros,
-> ordenação e paginação. Criação e edição pela tela, detalhe da ordem, painel, leitura do histórico
-> e CSV ainda não foram implementados.
+> com fluxo de status e registro de eventos, e as telas de ordens: lista com busca, filtros,
+> ordenação e paginação; criar, ver, editar, mudar status, atribuir e excluir. Painel, leitura do
+> histórico e CSV ainda não foram implementados.
 
 ## Stack
 
@@ -97,6 +97,10 @@ o `/auth/me`.
 | `PATCH /work-orders/:id/assignee` | Supervisor         | Define ou remove o responsável                  |
 | `DELETE /work-orders/:id`         | Supervisor         | Exclui a ordem e seus eventos                   |
 | `GET /dashboard/summary`          | Autenticado        | Contadores por status e ordens atrasadas        |
+| `GET /users`                      | Supervisor         | Lista usuários (id, nome e perfil) por nome     |
+
+`GET /users` existe para o supervisor escolher o responsável (na criação e na atribuição). Devolve
+só `id`, `name` e `role`, nunca e-mail ou hash; para operador responde 403.
 
 ### Parâmetros de `GET /work-orders`
 
@@ -263,6 +267,28 @@ código desconhecido). Sem resposta do servidor, o `code` é `NETWORK_ERROR`. Em
 (500) aparece também o `requestId`, para informar ao suporte. Um 401 em qualquer requisição limpa
 a sessão e leva ao `/login`.
 
+### Telas de ordem
+
+| Rota               | O que faz                                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| `/orders/new`      | Cria uma ordem. Operador é sempre o responsável; supervisor escolhe qualquer usuário ou "Sem responsável" |
+| `/orders/:id`      | Detalhe com as ações permitidas: editar, iniciar, concluir, cancelar, atribuir e excluir                  |
+| `/orders/:id/edit` | Edita título e descrição; prioridade e prazo só para supervisor                                           |
+
+- **Cada ação aparece só para quem pode fazê-la**, pela função `getAvailableActions`
+  (`features/work-orders/permissions.ts`), que espelha a política da API. Se a API recusar mesmo
+  assim, a mensagem vem do `code`.
+- **Formulários** com react-hook-form e zod: validação ao sair do campo e no envio, resumo de erros
+  que recebe o foco, e os erros 400 da API aparecem no campo certo (pelo `field` do `details`).
+- **A edição envia só o que mudou**; sem mudança, avisa e não chama a API.
+- **Sem atualização otimista**: o botão fica desabilitado até a API responder. Depois de sucesso, a
+  lista e o detalhe são buscados de novo. Num 409 (outra pessoa mudou a ordem, ou ela já foi
+  finalizada) aparece a mensagem e o detalhe é recarregado, então a tela se corrige sozinha.
+- **Cancelar e excluir pedem confirmação** num `<dialog>` nativo (Esc ou "Voltar" desistem). Excluir
+  avisa que o histórico da ordem também é apagado.
+- **Prazo**: o campo é uma data; ao salvar vira o **fim desse dia no fuso do navegador** (23:59:59.999
+  local), enviado em UTC. Na criação não aceita data anterior a hoje; na edição aceita, como a API.
+
 ### Tema claro e escuro
 
 O tema começa pela preferência do sistema. O botão no cabeçalho ("Tema escuro" / "Tema claro")
@@ -325,6 +351,8 @@ Listagem e painel:
 - **Token no `localStorage`**: sobrevive ao recarregar e não sofre CSRF, mas um XSS consegue lê-lo. A expiração de 1h limita o estrago.
 - **Sem refresh token**: quando o token expira, é preciso entrar de novo.
 - **Filtro por responsável só via "Minhas ordens"**: a API aceita `assigneeId` com qualquer usuário, mas não há endpoint que liste usuários para montar o seletor.
+- **Ações da tela duplicam a política do back** (`features/work-orders/permissions.ts`): o front só decide o que mostrar, e a API continua decidindo o que vale. Se a política mudar, os dois lados e as duas matrizes de teste mudam juntos.
+- **A ordem ainda não mostra o histórico**: os eventos são gravados desde o Dia 3, mas não há endpoint nem tela para lê-los.
 - **Regra de "atrasada" duplicada no front** (`features/work-orders/overdue.ts`): a lista não traz esse campo, então o selo é calculado no navegador com a mesma regra da API. A API continua sendo a fonte da verdade (é ela que filtra `overdue=true`); se a regra mudar, os dois lados e seus testes mudam juntos.
 
 ## Testes
