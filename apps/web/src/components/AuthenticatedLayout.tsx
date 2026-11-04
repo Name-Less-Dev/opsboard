@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router';
 import { useAuth, type Role } from '../features/auth/auth-context';
+import { Button } from './Button';
 import { ThemeToggle } from './ThemeToggle';
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -51,13 +52,9 @@ export function AuthenticatedLayout() {
 
           <div className="ml-auto flex items-center gap-2 sm:ml-0">
             <ThemeToggle />
-            <button
-              type="button"
-              onClick={logout}
-              className="shrink-0 rounded-control border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-muted"
-            >
+            <Button size="sm" onClick={logout}>
               Sair
-            </button>
+            </Button>
           </div>
         </div>
       </header>
