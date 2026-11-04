@@ -119,6 +119,29 @@ Listagem e painel:
 - Em `status` e `priority`, espaços e valores repetidos são ignorados, assim como itens vazios (`OPEN,`). `q` passa por trim, é ignorado se vazio e dá 400 acima de 100 caracteres.
 - A prioridade ordena por gravidade (`LOW` < `MEDIUM` < `HIGH` < `URGENT`), que é a ordem de declaração do enum no Postgres.
 
+## Convenções do front (`apps/web`)
+
+- **URL como fonte da verdade** da lista: filtros, busca, ordenação e página vivem na query string. A tela lê com `parseListParams` e escreve com `serializeListParams` (`features/work-orders/list-params.ts`); valor inválido na URL é descartado, nunca quebra a tela. F5, colar a URL e voltar/avançar reproduzem a mesma tela.
+- Parâmetros da URL: `q`, `status` e `priority` (lista por vírgula), `assignee=me` ("Minhas ordens"), `overdue=true`, `dueFrom`/`dueTo` (data local `AAAA-MM-DD`), `sortBy`, `order`, `page`, `pageSize`. Valores padrão são omitidos. Só `toApiQuery` traduz para a query da API.
+- Mudar filtro, busca ou ordenação volta para a página 1; mudar só a página não mexe no resto. "Limpar filtros" mantém a ordenação.
+- **Erros pelo `code`**, nunca pelo texto da API: o cliente (`lib/api.ts`) lança `ApiError` com `statusCode`, `code`, `message`, `details` e `requestId`. As mensagens para o usuário ficam só em `lib/error-messages.ts`, indexadas por `code`, com texto padrão para código desconhecido. Sem resposta do servidor, o `code` é `NETWORK_ERROR`. O `requestId` só aparece em erro inesperado (500).
+- **Datas**: a API trabalha em UTC; a tela exibe no fuso do navegador com `Intl.DateTimeFormat('pt-BR')`. Os filtros de prazo são datas locais: "de" vira o início do dia local e "até" o fim do dia local, em ISO com fuso.
+- **Sem biblioteca de componentes** (MUI, Chakra, shadcn etc.): Tailwind CSS com cores e espaçamentos em variáveis CSS (tema claro e escuro). Componentes próprios em `components/`.
+- **Dados do servidor com TanStack Query**; sem Redux, Zustand ou outro estado global.
+- Status e prioridade nunca dependem só de cor: sempre com texto.
+
+| Enum                      | Rótulo                |
+| ------------------------- | --------------------- |
+| `OPEN`                    | Aberta                |
+| `IN_PROGRESS`             | Em andamento          |
+| `DONE`                    | Concluída             |
+| `CANCELLED`               | Cancelada             |
+| `LOW`                     | Baixa                 |
+| `MEDIUM`                  | Média                 |
+| `HIGH`                    | Alta                  |
+| `URGENT`                  | Urgente               |
+| `OPERATOR` / `SUPERVISOR` | Operador / Supervisor |
+
 ## Formato de erro
 
 Toda resposta de erro, de qualquer rota, tem este formato:
