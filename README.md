@@ -4,19 +4,20 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 (abertura, andamento, conclusão), com histórico de eventos de cada ordem.
 
 > **Status:** em construção. Hoje existem a infraestrutura (Docker, banco, migrations, seed),
-> o login com JWT e dois perfis, a proteção de rotas na API e no front, a tela inicial que mostra
-> o estado da API e a API de ordens de serviço com fluxo de status e registro de eventos. A tela de
-> ordens, filtros, painel, leitura do histórico e CSV ainda não foram implementados.
+> o login com JWT e dois perfis, a proteção de rotas na API e no front, a API de ordens de serviço
+> com fluxo de status e registro de eventos, e a tela de lista de ordens com busca, filtros,
+> ordenação e paginação. Criação e edição pela tela, detalhe da ordem, painel, leitura do histórico
+> e CSV ainda não foram implementados.
 
 ## Stack
 
-- **Front:** React 19 + TypeScript + Vite (`apps/web`)
+- **Front:** React 19 + TypeScript + Vite (`apps/web`), Tailwind CSS 4, TanStack Query
 - **API:** NestJS 11 + TypeScript (`apps/api`)
 - **Banco:** PostgreSQL 17 + Prisma 7
 - **Infra local:** Docker Compose (`db`, `api`, `web`)
 - **Auth:** JWT (Bearer) com perfis `OPERATOR` e `SUPERVISOR`, senhas com bcrypt
 - **Docs da API:** OpenAPI/Swagger
-- **Qualidade:** TypeScript estrito, ESLint + Prettier compartilhados, Jest (API), Vitest (web)
+- **Qualidade:** TypeScript estrito, ESLint + Prettier compartilhados, Jest (API), Vitest + Testing Library + MSW (web)
 
 ## Pré-requisitos
 
@@ -218,6 +219,57 @@ npm run types:generate -w @opsboard/web   # gera apps/web/src/lib/api-types.ts
 `npm run check:contract` regenera e falha se algo mudou, o que mostra que a API foi alterada sem
 regenerar os tipos.
 
+## Front-end
+
+A tela principal é `/orders` (a raiz `/` redireciona para ela): lista de ordens com busca, filtros
+por status, prioridade, "Minhas ordens", "Somente atrasadas" e prazo, ordenação e paginação. Tabela
+no desktop e cartões no celular. Cada título leva a `/orders/:id`, hoje uma página provisória.
+
+### Estrutura de pastas (`apps/web/src`)
+
+```
+components/            # peças reutilizáveis: Button, Badge, Skeleton, EmptyState, ErrorState,
+                       # Pagination, campos de formulário, layout autenticado, alternador de tema
+features/auth/         # sessão: AuthProvider e contexto
+features/work-orders/  # lista de ordens: parâmetros da URL, hook de dados, filtros, tabela/cartões,
+                       # rótulos em português e a regra de "atrasada"
+lib/                   # cliente HTTP, mensagens de erro, TanStack Query, tema, formatação de datas,
+                       # tipos gerados da API (api-types.ts)
+pages/                 # telas ligadas às rotas
+test/                  # setup do Vitest e API falsa com MSW
+```
+
+### A URL é a fonte da verdade
+
+Filtros, busca, ordenação e página vivem na query string, por exemplo
+`/orders?status=OPEN,IN_PROGRESS&priority=URGENT&overdue=true&sortBy=dueDate&order=asc&page=2`.
+A tela lê da URL e escreve na URL; não há estado próprio. Por isso recarregar (F5), colar o link em
+outra aba e os botões voltar/avançar do navegador reproduzem exatamente a mesma tela.
+
+- Valores padrão não aparecem na URL, e valores inválidos são descartados e corrigidos na hora
+  (`page=abc` some), sem quebrar a tela.
+- Mudar um filtro, a busca ou a ordenação volta para a página 1.
+- A busca espera 300 ms sem digitar antes de ir para a URL (ou vai na hora com Enter).
+- Os prazos ficam na URL como data local (`dueFrom=2026-11-04`). Na chamada à API, "de" vira o
+  início do dia e "até" o fim do dia no fuso do navegador, em ISO; as datas da lista aparecem no
+  fuso do navegador.
+
+### Erros pelo `code`
+
+O cliente HTTP (`lib/api.ts`) transforma toda resposta de erro em um `ApiError` com `statusCode`,
+`code`, `message`, `details` e `requestId`. A tela decide pelo `code`, nunca pelo texto da API, e
+todas as mensagens para o usuário ficam em `lib/error-messages.ts` (com um texto padrão para
+código desconhecido). Sem resposta do servidor, o `code` é `NETWORK_ERROR`. Em erro inesperado
+(500) aparece também o `requestId`, para informar ao suporte. Um 401 em qualquer requisição limpa
+a sessão e leva ao `/login`.
+
+### Tema claro e escuro
+
+O tema começa pela preferência do sistema. O botão no cabeçalho ("Tema escuro" / "Tema claro")
+alterna e guarda a escolha no `localStorage` (`opsboard.theme`); para voltar a seguir o sistema,
+apague essa chave. As cores são variáveis CSS (`src/index.css`), com contraste conferido nos dois
+temas.
+
 ## Regras de negócio
 
 Fonte da verdade do fluxo de ordens de serviço.
@@ -272,6 +324,8 @@ Listagem e painel:
 - **IP atrás do nginx no compose**: o nginx não repassa o IP do cliente e o compose usa `TRUST_PROXY=0`, então quem acessa pela porta 8080 divide uma única contagem de tentativas. Corrigir exige `TRUST_PROXY=1`, o nginx definir `X-Forwarded-For` e a porta 3000 deixar de ser publicada (senão o acesso direto forja o IP).
 - **Token no `localStorage`**: sobrevive ao recarregar e não sofre CSRF, mas um XSS consegue lê-lo. A expiração de 1h limita o estrago.
 - **Sem refresh token**: quando o token expira, é preciso entrar de novo.
+- **Filtro por responsável só via "Minhas ordens"**: a API aceita `assigneeId` com qualquer usuário, mas não há endpoint que liste usuários para montar o seletor.
+- **Regra de "atrasada" duplicada no front** (`features/work-orders/overdue.ts`): a lista não traz esse campo, então o selo é calculado no navegador com a mesma regra da API. A API continua sendo a fonte da verdade (é ela que filtra `overdue=true`); se a regra mudar, os dois lados e seus testes mudam juntos.
 
 ## Testes
 
@@ -283,6 +337,9 @@ npm test
 Os testes de integração da API rodam em um banco separado (`opsboard_test`), criado sozinho no mesmo
 Postgres. Eles apagam as tabelas desse banco e se recusam a rodar em um banco cujo nome não termine
 em `_test`, então o banco de desenvolvimento não é tocado.
+
+Os testes do web usam o MSW para simular a API no nível da rede: cliente HTTP, TanStack Query,
+roteador e telas são os reais.
 
 ```bash
 npm run test:cov
@@ -365,6 +422,6 @@ Web em http://localhost:5173 (o Vite repassa `/api` para a API em `:3000`).
 ```
 apps/
   api/   # NestJS + Prisma (schema, migrations e seed em apps/api/prisma)
-  web/   # React + Vite
+  web/   # React + Vite + Tailwind (ver "Front-end")
 docker-compose.yml
 ```

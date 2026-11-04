@@ -38,7 +38,7 @@ em entrevista tudo o que estiver aqui.
 
 ```
 apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; leitura do histórico ainda não existe), dashboard, clock
-apps/web   # React: pages, components, features/auth, lib (cliente HTTP e sessão); próximas: features de ordens
+apps/web   # React: pages, components, features (auth, work-orders), lib (cliente HTTP, erros, query, tema), test (MSW)
 ```
 
 Monorepo com npm workspaces (`apps/*`).
