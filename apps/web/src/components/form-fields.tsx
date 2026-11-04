@@ -1,28 +1,63 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import {
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react';
 
-// Campos com label sempre associado (htmlFor/id gerado por useId) e erro ligado ao campo
-// por aria-describedby, para o leitor de tela ler a mensagem junto.
+// Campos com label sempre associado (htmlFor/id) e dica e erro ligados ao campo por
+// aria-describedby, para o leitor de tela ler a mensagem junto. O `ref` (do react-hook-form)
+// chega ao elemento nativo pelo `...props`: no React 19, `ref` é uma prop comum.
 
 const controlClass =
-  'w-full rounded-control border border-control-border bg-surface px-3 py-2 text-sm aria-[invalid=true]:border-danger';
+  'w-full rounded-control border border-control-border bg-surface px-3 py-2 text-sm aria-[invalid=true]:border-danger disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-muted';
 
-type FieldShellProps = {
-  id: string;
+type ShellProps = {
+  /** Id fixo, para links do resumo de erros; sem ele, um id gerado. */
+  id?: string;
   label: string;
+  hint?: ReactNode;
   error?: string;
-  errorId: string;
-  children: ReactNode;
 };
 
-function FieldShell({ id, label, error, errorId, children }: FieldShellProps) {
+function useFieldIds({ id, hint, error }: ShellProps) {
+  const generated = useId();
+  const fieldId = id ?? generated;
+  const hintId = `${fieldId}-hint`;
+  const errorId = `${fieldId}-error`;
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ');
+  return {
+    fieldId,
+    hintId,
+    errorId,
+    aria: {
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': describedBy || undefined,
+    },
+  };
+}
+
+function FieldShell({
+  label,
+  hint,
+  error,
+  ids,
+  children,
+}: ShellProps & { ids: ReturnType<typeof useFieldIds>; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
+      <label htmlFor={ids.fieldId} className="mb-1 block text-sm font-medium">
         {label}
       </label>
       {children}
+      {hint && (
+        <p id={ids.hintId} className="mt-1 text-sm text-muted">
+          {hint}
+        </p>
+      )}
       {error && (
-        <p id={errorId} className="mt-1 text-sm text-danger">
+        <p id={ids.errorId} className="mt-1 text-sm text-danger">
           {error}
         </p>
       )}
@@ -30,37 +65,58 @@ function FieldShell({ id, label, error, errorId, children }: FieldShellProps) {
   );
 }
 
-type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> & {
-  label: string;
-  error?: string;
-};
+type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> & ShellProps;
 
-export function TextField({ label, error, className = '', ...props }: TextFieldProps) {
-  const id = useId();
-  const errorId = `${id}-error`;
+export function TextField({ id, label, hint, error, className = '', ...props }: TextFieldProps) {
+  const ids = useFieldIds({ id, label, hint, error });
   return (
-    <FieldShell id={id} label={label} error={error} errorId={errorId}>
-      <input
-        id={id}
-        className={`${controlClass} ${className}`}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
+    <FieldShell label={label} hint={hint} error={error} ids={ids}>
+      <input id={ids.fieldId} className={`${controlClass} ${className}`} {...ids.aria} {...props} />
+    </FieldShell>
+  );
+}
+
+type TextAreaFieldProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> & ShellProps;
+
+export function TextAreaField({
+  id,
+  label,
+  hint,
+  error,
+  className = '',
+  ...props
+}: TextAreaFieldProps) {
+  const ids = useFieldIds({ id, label, hint, error });
+  return (
+    <FieldShell label={label} hint={hint} error={error} ids={ids}>
+      <textarea
+        id={ids.fieldId}
+        className={`${controlClass} min-h-28 ${className}`}
+        {...ids.aria}
         {...props}
       />
     </FieldShell>
   );
 }
 
-type SelectFieldProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> & {
-  label: string;
-  options: readonly { value: string; label: string }[];
-};
+type SelectFieldProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'> &
+  ShellProps & {
+    options: readonly { value: string; label: string }[];
+  };
 
-export function SelectField({ label, options, className = '', ...props }: SelectFieldProps) {
-  const id = useId();
+export function SelectField({
+  id,
+  label,
+  hint,
+  error,
+  options,
+  className = '',
+  ...props
+}: SelectFieldProps) {
+  const ids = useFieldIds({ id, label, hint, error });
   return (
-    <FieldShell id={id} label={label} errorId={`${id}-error`}>
-      <select id={id} className={`${controlClass} ${className}`} {...props}>
+    <FieldShell label={label} hint={hint} error={error} ids={ids}>
+      <select id={ids.fieldId} className={`${controlClass} ${className}`} {...ids.aria} {...props}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

@@ -1,12 +1,8 @@
 import { NavLink, Outlet } from 'react-router';
-import { useAuth, type Role } from '../features/auth/auth-context';
+import { useAuth } from '../features/auth/auth-context';
+import { ROLE_LABELS } from '../features/auth/role-labels';
 import { Button } from './Button';
 import { ThemeToggle } from './ThemeToggle';
-
-const ROLE_LABELS: Record<Role, string> = {
-  OPERATOR: 'Operador',
-  SUPERVISOR: 'Supervisor',
-};
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-control px-3 py-1.5 text-sm font-medium ${

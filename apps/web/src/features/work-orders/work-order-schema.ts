@@ -28,6 +28,8 @@ const baseShape = {
     .max(DESCRIPTION_MAX, `A descrição pode ter no máximo ${DESCRIPTION_MAX} caracteres.`),
   priority: z.enum(PRIORITY_VALUES, { error: 'Escolha a prioridade.' }),
   dueDate: z.string().min(1, 'Informe o prazo.'),
+  /** Só na criação por supervisor: '' = sem responsável. A edição ignora. */
+  assigneeId: z.string().optional(),
 };
 
 /** Criação: o prazo não pode ser anterior a hoje (data local). */
@@ -44,3 +46,6 @@ export function createWorkOrderSchema(today: string) {
 
 /** Edição: prazo no passado é permitido (a API só proíbe na criação). */
 export const editWorkOrderSchema = z.object(baseShape);
+
+export type WorkOrderFormInput = z.input<typeof editWorkOrderSchema>;
+export type WorkOrderFormOutput = z.output<typeof editWorkOrderSchema>;

@@ -7,10 +7,14 @@ export const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   VALIDATION_ERROR: 'Alguns dados estão inválidos. Confira os campos e tente de novo.',
   UNAUTHORIZED: 'Sua sessão expirou. Entre de novo para continuar.',
   FORBIDDEN: 'Você não tem permissão para fazer isso.',
-  NOT_FOUND: 'Não encontramos o que você procurava.',
-  INVALID_TRANSITION: 'Essa mudança de status não é permitida.',
-  ORDER_FINALIZED: 'Esta ordem já foi concluída ou cancelada e não pode mais ser alterada.',
-  CONCURRENT_UPDATE: 'Outra pessoa alterou esta ordem agora há pouco. Recarregue e tente de novo.',
+  NOT_FOUND: 'Esta ordem não existe mais. Ela pode ter sido excluída.',
+  // Os 409 recarregam o detalhe (use-work-order.ts): a mensagem diz que a tela foi atualizada.
+  INVALID_TRANSITION:
+    'Essa mudança de status não é mais possível: a ordem mudou. Os dados foram atualizados.',
+  ORDER_FINALIZED:
+    'Esta ordem já foi concluída ou cancelada e não pode mais ser alterada. Os dados foram atualizados.',
+  CONCURRENT_UPDATE:
+    'Outra pessoa alterou esta ordem agora há pouco. Confira os dados atualizados e tente de novo.',
   CONFLICT: 'Não foi possível salvar por conflito com outros dados.',
   TOO_MANY_REQUESTS: 'Muitas tentativas seguidas. Aguarde um minuto e tente de novo.',
   HTTP_ERROR: 'Não foi possível concluir a requisição.',
@@ -22,6 +26,18 @@ export const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
 };
 
 export const DEFAULT_ERROR_MESSAGE = 'Algo deu errado. Tente de novo.';
+
+/**
+ * Mensagens por campo para o `details` de um 400 da API. O texto que vem em `details` é do
+ * class-validator (inglês, pode mudar), então só o NOME do campo é usado.
+ */
+export const FIELD_ERROR_MESSAGES: Record<string, string> = {
+  title: 'O servidor recusou o título: use de 3 a 120 caracteres.',
+  description: 'O servidor recusou a descrição: use no máximo 2000 caracteres.',
+  priority: 'O servidor recusou a prioridade. Escolha uma da lista.',
+  dueDate: 'O servidor recusou o prazo. Na criação, ele não pode estar no passado.',
+  assigneeId: 'Responsável não encontrado. Escolha outro usuário.',
+};
 
 /** Mensagens do login que trocam o texto geral de alguns códigos. */
 export const LOGIN_ERROR_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
