@@ -129,6 +129,11 @@ Listagem e painel:
 - **Sem biblioteca de componentes** (MUI, Chakra, shadcn etc.): Tailwind CSS com cores e espaçamentos em variáveis CSS (tema claro e escuro). Componentes próprios em `components/`.
 - **Dados do servidor com TanStack Query**; sem Redux, Zustand ou outro estado global.
 - Status e prioridade nunca dependem só de cor: sempre com texto.
+- **Formulários** com `react-hook-form` + `zod`. O schema espelha as regras da API (título 3 a 120, descrição até 2000, prioridade no enum), mas a API é a fonte da verdade: o `details` de um 400 é mapeado para o campo pelo `field`. Validação ao sair do campo e no envio, com foco no primeiro campo com erro e resumo de erros.
+- **Prazo no formulário**: `input type="date"`; ao enviar vira o **fim do dia local** em ISO (UTC). Na criação não aceita data anterior a hoje; na edição aceita (a API só proíbe na criação).
+- **Ações por `getAvailableActions(user, order)`** (`features/work-orders/permissions.ts`): espelho da política do back (`work-order.policy.ts`), que continua sendo a fonte da verdade. Os testes copiam a matriz do back.
+- **Mutações sem atualização otimista**: a tela espera a resposta, desabilita o botão durante o envio e, no sucesso, invalida a lista e o detalhe. Em 409 mostra a mensagem do `code` e busca o detalhe de novo.
+- **Confirmação de ações destrutivas** (cancelar e excluir) com o `<dialog>` nativo, com o foco devolvido ao botão de origem. Feedback de sucesso numa região `role="status"`, sem biblioteca de toast.
 
 | Enum                      | Rótulo                |
 | ------------------------- | --------------------- |
