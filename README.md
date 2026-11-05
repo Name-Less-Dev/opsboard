@@ -6,8 +6,8 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 > **Status:** em construção. Hoje existem a infraestrutura (Docker, banco, migrations, seed),
 > o login com JWT e dois perfis, a proteção de rotas na API e no front, a API de ordens de serviço
 > com fluxo de status e registro de eventos, e as telas de ordens: lista com busca, filtros,
-> ordenação e paginação; criar, ver, editar, mudar status, atribuir e excluir. Painel, leitura do
-> histórico e CSV ainda não foram implementados.
+> ordenação e paginação; criar, ver, editar, mudar status, atribuir e excluir; e o painel com
+> contadores por status e ordens atrasadas. Leitura do histórico e CSV ainda não foram implementados.
 
 ## Stack
 
@@ -225,9 +225,14 @@ regenerar os tipos.
 
 ## Front-end
 
-A tela principal é `/orders` (a raiz `/` redireciona para ela): lista de ordens com busca, filtros
-por status, prioridade, "Minhas ordens", "Somente atrasadas" e prazo, ordenação e paginação. Tabela
-no desktop e cartões no celular. Cada título leva a `/orders/:id`, hoje uma página provisória.
+Ao entrar, a raiz `/` leva ao **Painel** (`/dashboard`). O menu tem "Painel" e "Ordens". Em
+`/orders` fica a lista de ordens, com:
+
+- busca e filtros por status, prioridade, "Minhas ordens", "Somente atrasadas" e prazo;
+- ordenação e paginação;
+- tabela no desktop e cartões no celular.
+
+Cada título leva ao detalhe da ordem (`/orders/:id`).
 
 ### Estrutura de pastas (`apps/web/src`)
 
@@ -235,6 +240,8 @@ no desktop e cartões no celular. Cada título leva a `/orders/:id`, hoje uma p�
 components/            # peças reutilizáveis: Button, Badge, Skeleton, EmptyState, ErrorState,
                        # Pagination, campos de formulário, layout autenticado, alternador de tema
 features/auth/         # sessão: AuthProvider e contexto
+features/dashboard/    # painel: hook e chave de cache, cards, barra de distribuição, lista de
+                       # atrasadas, links para a lista e cálculo de "há N dias"
 features/work-orders/  # lista de ordens: parâmetros da URL, hook de dados, filtros, tabela/cartões,
                        # rótulos em português e a regra de "atrasada"
 lib/                   # cliente HTTP, mensagens de erro, TanStack Query, tema, formatação de datas,
@@ -288,6 +295,39 @@ a sessão e leva ao `/login`.
   avisa que o histórico da ordem também é apagado.
 - **Prazo**: o campo é uma data; ao salvar vira o **fim desse dia no fuso do navegador** (23:59:59.999
   local), enviado em UTC. Na criação não aceita data anterior a hoje; na edição aceita, como a API.
+
+### Painel
+
+O painel (`/dashboard`) mostra o que `GET /dashboard/summary` devolve, sem métrica calculada à parte:
+
+| Número                         | O que significa                                                      |
+| ------------------------------ | -------------------------------------------------------------------- |
+| Abertas, Em andamento, etc.    | Quantas ordens existem em cada status (0 quando não há nenhuma)      |
+| Atrasadas                      | Ordens com prazo vencido que ainda estão abertas ou em andamento     |
+| Total                          | Soma dos quatro status                                               |
+| Ativas                         | Abertas + em andamento                                               |
+| Barra e tabela de distribuição | Parte de cada status no total, em percentuais inteiros que somam 100 |
+
+- **Regra de atrasada**: prazo anterior ao instante atual e status aberta ou em andamento. Prazo
+  igual ao instante atual ainda não é atrasado, e ordem concluída ou cancelada nunca é. Quem conta
+  é a API.
+- **Atalhos**: cada card abre a lista já filtrada (por exemplo, `/orders?status=OPEN`). O card de
+  atrasadas abre `/orders?overdue=true&sortBy=dueDate&order=asc`. "Minhas ordens em aberto" abre
+  as ordens abertas e em andamento em que você é o responsável. O total da lista bate com o número
+  do card.
+- **Ordens atrasadas**: até 10, do prazo mais antigo para o mais novo, cada uma com "há N dias" (ou
+  horas). Com mais de 10, aparece "Ver todas as N atrasadas".
+- **De onde vem o horário**: "Atualizado às HH:mm" e o "há N dias" usam o `generatedAt` da
+  resposta, que é o instante em que a API contou as atrasadas. Esse horário é mostrado no fuso do
+  navegador, e o relógio do navegador não entra na conta, para o painel não contradizer a
+  contagem do servidor.
+- **Quando os números mudam**:
+  - O painel não se atualiza sozinho: nada de polling, WebSocket ou atualização ao voltar para a
+    aba.
+  - Ao abrir a tela, os dados vêm do cache se tiverem menos de 30 s; senão, são buscados de novo.
+  - O botão "Atualizar" busca na hora.
+  - Criar, editar, mudar status, atribuir ou excluir uma ordem marca o painel como desatualizado,
+    então ao voltar a ele os números já refletem a mudança.
 
 ### Tema claro e escuro
 
@@ -353,6 +393,8 @@ Listagem e painel:
 - **Filtro por responsável só via "Minhas ordens"**: a API aceita `assigneeId` com qualquer usuário, mas não há endpoint que liste usuários para montar o seletor.
 - **Ações da tela duplicam a política do back** (`features/work-orders/permissions.ts`): o front só decide o que mostrar, e a API continua decidindo o que vale. Se a política mudar, os dois lados e as duas matrizes de teste mudam juntos.
 - **A ordem ainda não mostra o histórico**: os eventos são gravados desde o Dia 3, mas não há endpoint nem tela para lê-los.
+- **Painel sem atualização automática**: os números só mudam ao abrir a tela (depois de 30 s), pelo botão "Atualizar" ou depois de uma ação feita neste navegador. Mudanças feitas por outra pessoa só aparecem ao atualizar.
+- **Painel sem métricas por responsável, prioridade ou período**: a API entrega só contadores por status e as atrasadas, e o painel não calcula nada por conta própria.
 - **Regra de "atrasada" duplicada no front** (`features/work-orders/overdue.ts`): a lista não traz esse campo, então o selo é calculado no navegador com a mesma regra da API. A API continua sendo a fonte da verdade (é ela que filtra `overdue=true`); se a regra mudar, os dois lados e seus testes mudam juntos.
 
 ## Testes
