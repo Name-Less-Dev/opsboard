@@ -10,6 +10,7 @@ import { FlashMessage } from '../components/FlashMessage';
 import { Skeleton } from '../components/Skeleton';
 import { useAuth } from '../features/auth/auth-context';
 import { AssignForm } from '../features/work-orders/AssignForm';
+import { HistorySection } from '../features/work-orders/history/HistorySection';
 import {
   STATUS_LABELS,
   type WorkOrder,
@@ -293,6 +294,9 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
           onError={setActionError}
         />
       )}
+
+      {/* key: outra ordem começa na página 1 do histórico. */}
+      <HistorySection key={order.id} orderId={order.id} />
 
       <ConfirmDialog
         open={confirmCancel}
