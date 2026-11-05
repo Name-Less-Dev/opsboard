@@ -105,6 +105,35 @@
   --radius-control: 0.375rem;
 }
 
+/*
+ * Padrões da barra de distribuição do painel: cada status tem cor E desenho próprios, para os
+ * segmentos se distinguirem sem depender da cor (daltonismo, impressão em preto e branco).
+ * As listras usam a cor da superfície por cima da cor do segmento, então valem nos dois temas.
+ */
+@layer components {
+  .fill-pattern-stripes {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent 0 5px,
+      color-mix(in srgb, var(--surface) 55%, transparent) 5px 8px
+    );
+  }
+  .fill-pattern-backstripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0 3px,
+      color-mix(in srgb, var(--surface) 55%, transparent) 3px 5px
+    );
+  }
+  .fill-pattern-dots {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--surface) 65%, transparent) 1.5px,
+      transparent 1.6px
+    );
+    background-size: 6px 6px;
+  }
+}
+
 @layer base {
   body {
     @apply bg-bg text-text antialiased;
