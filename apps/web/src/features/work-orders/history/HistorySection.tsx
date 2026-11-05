@@ -75,15 +75,18 @@ export function HistorySection({
         ) : (
           <div aria-busy={updating} className="space-y-4">
             <HistoryTimeline events={data.items} />
-            <Pagination
-              page={data.page}
-              totalPages={data.totalPages}
-              total={data.total}
-              onPageChange={changePage}
-              disabled={query.isPlaceholderData}
-              label="Paginação do histórico"
-              itemNames={['evento', 'eventos']}
-            />
+            {/* Com uma página só, quatro botões desabilitados seriam só ruído. */}
+            {data.totalPages > 1 && (
+              <Pagination
+                page={data.page}
+                totalPages={data.totalPages}
+                total={data.total}
+                onPageChange={changePage}
+                disabled={query.isPlaceholderData}
+                label="Paginação do histórico"
+                itemNames={['evento', 'eventos']}
+              />
+            )}
           </div>
         )
       ) : (

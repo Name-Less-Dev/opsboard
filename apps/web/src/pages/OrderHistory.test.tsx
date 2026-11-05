@@ -110,6 +110,8 @@ describe('Histórico no detalhe da ordem', () => {
     expect(time.tagName).toBe('TIME');
     expect(time).toHaveAttribute('datetime', '2026-11-04T18:30:00.000Z');
     expect(within(section()).getByRole('heading', { level: 2, name: 'Histórico' })).toBeVisible();
+    // Uma página só: sem paginação.
+    expect(screen.queryByRole('navigation', { name: 'Paginação do histórico' })).toBeNull();
   });
 
   it('details null e tipo desconhecido viram texto genérico, sem quebrar a tela', async () => {
