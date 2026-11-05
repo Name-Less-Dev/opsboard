@@ -23,6 +23,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 const ORDER = makeOrder();
+const OTHER_ID = '99999999-9999-4999-8999-999999999999';
 
 /** Cliente com painel e lista já no cache (como se as telas tivessem sido abertas). */
 function setup() {
@@ -32,6 +33,9 @@ function setup() {
   const client = createQueryClient();
   client.setQueryData(dashboardKeys.summary(), { cached: true });
   client.setQueryData(workOrderKeys.list(DEFAULT_LIST_PARAMS), { cached: true });
+  client.setQueryData(workOrderKeys.historyPage(ORDER.id, 1), { cached: true });
+  client.setQueryData(workOrderKeys.historyPage(ORDER.id, 2), { cached: true });
+  client.setQueryData(workOrderKeys.historyPage(OTHER_ID, 1), { cached: true });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -105,5 +109,43 @@ describe('mutações de ordem invalidam lista e painel', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     await waitFor(() => expect(isInvalidated(client, dashboardKeys.summary())).toBe(true));
+  });
+
+  describe('histórico da ordem', () => {
+    const historyState = (client: QueryClient, id: string, page: number) =>
+      client.getQueryState(workOrderKeys.historyPage(id, page));
+
+    it.each(cases.filter(([name]) => ['editar', 'mudar status', 'atribuir'].includes(name)))(
+      '%s invalida todas as páginas do histórico daquela ordem, e só dela',
+      async (_name, useMutate) => {
+        const { client, wrapper } = setup();
+        const { result } = renderHook(useMutate, { wrapper });
+        await act(() => result.current());
+
+        expect(historyState(client, ORDER.id, 1)?.isInvalidated).toBe(true);
+        expect(historyState(client, ORDER.id, 2)?.isInvalidated).toBe(true);
+        expect(historyState(client, OTHER_ID, 1)?.isInvalidated).toBe(false);
+      },
+    );
+
+    it('criar não mexe em histórico nenhum', async () => {
+      const { client, wrapper } = setup();
+      const create = cases.find(([name]) => name === 'criar')![1];
+      const { result } = renderHook(create, { wrapper });
+      await act(() => result.current());
+
+      expect(historyState(client, ORDER.id, 1)?.isInvalidated).toBe(false);
+    });
+
+    it('excluir remove o histórico daquela ordem do cache', async () => {
+      const { client, wrapper } = setup();
+      const remove = cases.find(([name]) => name === 'excluir')![1];
+      const { result } = renderHook(remove, { wrapper });
+      await act(() => result.current());
+
+      expect(historyState(client, ORDER.id, 1)).toBeUndefined();
+      expect(historyState(client, ORDER.id, 2)).toBeUndefined();
+      expect(historyState(client, OTHER_ID, 1)).toBeDefined();
+    });
   });
 });

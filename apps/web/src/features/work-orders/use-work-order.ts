@@ -16,12 +16,13 @@ export function useWorkOrder(id: string) {
 }
 
 // Sem atualização otimista: a tela espera a resposta da API. No sucesso, a lista (todas as
-// páginas e filtros), o painel e o detalhe ficam velhos e são buscados de novo quando
-// aparecerem.
+// páginas e filtros), o painel, o detalhe e o histórico daquela ordem ficam velhos e são
+// buscados de novo quando aparecerem (o histórico na tela, na hora: ganhou um evento).
 function invalidateOrder(queryClient: QueryClient, id: string) {
   return Promise.all([
     invalidateCollections(queryClient),
     queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(id) }),
+    queryClient.invalidateQueries({ queryKey: workOrderKeys.history(id) }),
   ]);
 }
 
@@ -45,7 +46,8 @@ export function useCreateWorkOrder() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateWorkOrderPayload) => apiPost<WorkOrder>('/work-orders', payload),
-    onSuccess: (created) => invalidateOrder(queryClient, created.id),
+    // Ordem nova: não há detalhe nem histórico dela no cache, só lista e painel ficam velhos.
+    onSuccess: () => invalidateCollections(queryClient),
   });
 }
 
@@ -84,8 +86,9 @@ export function useDeleteWorkOrder(id: string) {
   return useMutation({
     mutationFn: () => apiDelete(`/work-orders/${id}`),
     onSuccess: async () => {
-      // A ordem não existe mais: tira o detalhe do cache (buscar de novo daria 404).
+      // A ordem não existe mais: tira detalhe e histórico do cache (buscar de novo daria 404).
       queryClient.removeQueries({ queryKey: workOrderKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: workOrderKeys.history(id) });
       await invalidateCollections(queryClient);
     },
     onError: (error) => refetchIfStale(queryClient, id, error),

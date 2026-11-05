@@ -11,6 +11,9 @@ export const workOrderKeys = {
   // `priority` já vêm normalizados (ordem do enum), então URLs equivalentes dividem o cache.
   list: (params: ListParams) => [...workOrderKeys.lists(), params] as const,
   detail: (id: string) => [...workOrderKeys.all, 'detail', id] as const,
+  /** Todas as páginas do histórico de uma ordem: é o que se invalida ou remove. */
+  history: (id: string) => [...workOrderKeys.all, 'history', id] as const,
+  historyPage: (id: string, page: number) => [...workOrderKeys.history(id), page] as const,
 };
 
 export function useWorkOrders(params: ListParams) {
