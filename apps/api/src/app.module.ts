@@ -9,6 +9,7 @@ import { toValidationDetails } from './common/errors/validation-details';
 import { requestLogMiddleware } from './common/request-log/request-log';
 import { requestIdMiddleware } from './common/request-id/request-id';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { EventsModule } from './events/events.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
@@ -23,6 +24,7 @@ import { WorkOrdersModule } from './work-orders/work-orders.module';
     AuthModule,
     UsersModule,
     WorkOrdersModule,
+    EventsModule,
     DashboardModule,
   ],
   providers: [
