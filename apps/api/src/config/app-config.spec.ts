@@ -32,6 +32,9 @@ describe('loadAppConfig', () => {
       loginRateLimit: 5,
       loginRateTtlSeconds: 60,
       swaggerEnabled: true,
+      appTimezone: 'America/Sao_Paulo',
+      exportMaxRows: 10000,
+      importMaxRows: 500,
     });
   });
 
@@ -45,8 +48,14 @@ describe('loadAppConfig', () => {
       LOGIN_RATE_LIMIT: '10',
       LOGIN_RATE_TTL: '120',
       SWAGGER_ENABLED: 'true',
+      APP_TIMEZONE: ' UTC ',
+      EXPORT_MAX_ROWS: '50',
+      IMPORT_MAX_ROWS: '1',
     });
     expect(config).toMatchObject({
+      appTimezone: 'UTC',
+      exportMaxRows: 50,
+      importMaxRows: 1,
       nodeEnv: 'production',
       port: 8080,
       corsOrigins: ['https://ops.example.com', 'http://localhost:5173'],
@@ -107,6 +116,12 @@ describe('loadAppConfig', () => {
     ['LOGIN_RATE_LIMIT zero', { LOGIN_RATE_LIMIT: '0' }, 'LOGIN_RATE_LIMIT'],
     ['LOGIN_RATE_TTL fracionado', { LOGIN_RATE_TTL: '1.5' }, 'LOGIN_RATE_TTL'],
     ['SWAGGER_ENABLED como 1', { SWAGGER_ENABLED: '1' }, 'SWAGGER_ENABLED'],
+    ['APP_TIMEZONE inexistente', { APP_TIMEZONE: 'America/Atlantida' }, 'APP_TIMEZONE'],
+    ['APP_TIMEZONE como offset solto', { APP_TIMEZONE: '-03:00' }, 'APP_TIMEZONE'],
+    ['EXPORT_MAX_ROWS zero', { EXPORT_MAX_ROWS: '0' }, 'EXPORT_MAX_ROWS'],
+    ['EXPORT_MAX_ROWS não numérico', { EXPORT_MAX_ROWS: 'muitas' }, 'EXPORT_MAX_ROWS'],
+    ['IMPORT_MAX_ROWS negativo', { IMPORT_MAX_ROWS: '-5' }, 'IMPORT_MAX_ROWS'],
+    ['IMPORT_MAX_ROWS fracionado', { IMPORT_MAX_ROWS: '2.5' }, 'IMPORT_MAX_ROWS'],
     ['origem com barra no fim', { CORS_ORIGINS: 'https://ops.example.com/' }, 'CORS_ORIGINS'],
     ['origem com caminho', { CORS_ORIGINS: 'https://ops.example.com/app' }, 'CORS_ORIGINS'],
     ['origem sem protocolo', { CORS_ORIGINS: 'ops.example.com' }, 'CORS_ORIGINS'],

@@ -9,6 +9,8 @@ const DESCRIPTIONS = {
   403: 'FORBIDDEN: ação válida no fluxo, mas sem permissão para este usuário',
   404: 'NOT_FOUND: ordem de serviço não encontrada',
   409: 'INVALID_TRANSITION, ORDER_FINALIZED ou CONCURRENT_UPDATE',
+  413: 'PAYLOAD_TOO_LARGE: corpo ou arquivo acima do limite',
+  422: 'EXPORT_TOO_LARGE: resultado acima de EXPORT_MAX_ROWS linhas; use mais filtros',
   429: 'TOO_MANY_REQUESTS: tentativas demais deste IP; ver o header Retry-After',
   503: 'SERVICE_UNAVAILABLE: banco de dados indisponível',
 } as const;

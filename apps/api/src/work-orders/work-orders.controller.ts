@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -14,7 +25,9 @@ import { parseIdPipe } from '../common/pipes/parse-id.pipe';
 import { Role } from '../generated/prisma/enums';
 import type { PublicUser } from '../users/users.service';
 import { ApiErrors } from '../common/errors/api-errors.decorator';
+import { CSV_CONTENT_TYPE } from './csv/export-csv';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
+import { ExportWorkOrdersDto } from './dto/export-work-orders.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
 import { WorkOrderPageResponseDto, WorkOrderResponseDto } from './dto/work-order-response.dto';
 import { UpdateAssigneeDto } from './dto/update-assignee.dto';
@@ -60,6 +73,29 @@ export class WorkOrdersController {
     @Query() query: ListWorkOrdersDto,
   ): Promise<WorkOrderPage> {
     return this.workOrders.findPage(actor, query);
+  }
+
+  // Declarada antes de `:id`: senão "export" seria lido como id (e daria 400 de UUID).
+  @Get('export')
+  @ApiOperation({
+    summary: 'Exporta as ordens filtradas em CSV',
+    description:
+      'Mesmos filtros e ordenação de GET /work-orders, sem page e pageSize. UTF-8 com BOM, separador `;`, CRLF. Acima de EXPORT_MAX_ROWS linhas, 422 EXPORT_TOO_LARGE.',
+  })
+  @ApiOkResponse({
+    description: 'Arquivo CSV (Content-Disposition: attachment)',
+    content: { 'text/csv': { schema: { type: 'string' } } },
+  })
+  @ApiErrors(400, 422)
+  async exportCsv(
+    @CurrentUser() actor: PublicUser,
+    @Query() query: ExportWorkOrdersDto,
+  ): Promise<StreamableFile> {
+    const { filename, content } = await this.workOrders.exportCsv(actor, query);
+    return new StreamableFile(Buffer.from(content, 'utf8'), {
+      type: CSV_CONTENT_TYPE,
+      disposition: `attachment; filename="${filename}"`,
+    });
   }
 
   @Get(':id')

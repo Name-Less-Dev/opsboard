@@ -7,7 +7,7 @@ import {
 } from './import-file';
 
 const utf8 = (text: string) => new TextEncoder().encode(text);
-const BOM = '﻿';
+const BOM = String.fromCharCode(0xfeff);
 
 function failure<T>(result: FileResult<T>): string {
   if (result.ok) throw new Error('esperava falha');

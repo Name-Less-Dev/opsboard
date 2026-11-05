@@ -49,6 +49,9 @@ services:
       # A imagem roda com NODE_ENV=production, onde o Swagger é desligado por padrão.
       # Ligado aqui porque o compose é a demonstração local; desligue num deploy real.
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
+      EXPORT_MAX_ROWS: ${EXPORT_MAX_ROWS:-10000}
+      IMPORT_MAX_ROWS: ${IMPORT_MAX_ROWS:-500}
       DATABASE_URL: *database-url
     ports:
       - '3000:3000'

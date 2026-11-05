@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../clock/clock';
+import { AppConfig } from '../config/app-config';
 import { DomainException, validationError } from '../common/errors/domain.exception';
 import { Prisma, type WorkOrder } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { buildExportCsv, exportFilename } from './csv/export-csv';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
+import { ExportWorkOrdersDto } from './dto/export-work-orders.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
 import { UpdateAssigneeDto } from './dto/update-assignee.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
@@ -29,6 +32,8 @@ export type WorkOrderPage = {
   pageSize: number;
   totalPages: number;
 };
+
+export type CsvExport = { filename: string; content: string };
 
 type Denied = { allowed: false; reason: 'INVALID_TRANSITION' | 'ORDER_FINAL' | 'FORBIDDEN' };
 
@@ -72,6 +77,7 @@ export class WorkOrdersService {
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly clock: Clock,
+    private readonly config: AppConfig,
   ) {}
 
   async create(actor: Actor, dto: CreateWorkOrderDto): Promise<WorkOrderResponse> {
@@ -109,18 +115,7 @@ export class WorkOrdersService {
 
   async findPage(actor: Actor, query: ListWorkOrdersDto): Promise<WorkOrderPage> {
     const { page, pageSize } = query;
-    const where = buildWorkOrderWhere(
-      {
-        status: query.status,
-        priority: query.priority,
-        assigneeId: query.assigneeId,
-        overdue: query.overdue,
-        dueFrom: query.dueFrom ? new Date(query.dueFrom) : undefined,
-        dueTo: query.dueTo ? new Date(query.dueTo) : undefined,
-        q: query.q,
-      },
-      { actorId: actor.id, now: this.clock.now() },
-    );
+    const where = this.listWhere(actor, query, this.clock.now());
 
     // Mesmo `where` nas duas consultas. RepeatableRead faz as duas lerem a mesma foto do banco:
     // no padrão (ReadCommitted), uma ordem criada entre elas faria `total` e `items` divergirem.
@@ -138,6 +133,31 @@ export class WorkOrdersService {
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
     return { items, total, page, pageSize, totalPages: countPages(total, pageSize) };
+  }
+
+  /**
+   * Mesmo `where` e `orderBy` da lista, sem paginação. Busca uma linha além do teto: se ela vier,
+   * o resultado passou do limite. Uma consulta só, sem `count` separado nem transação.
+   */
+  async exportCsv(actor: Actor, query: ExportWorkOrdersDto): Promise<CsvExport> {
+    const now = this.clock.now();
+    const max = this.config.exportMaxRows;
+    const orders = await this.prisma.workOrder.findMany({
+      where: this.listWhere(actor, query, now),
+      select: WORK_ORDER_SELECT,
+      orderBy: buildWorkOrderOrderBy(query.sortBy, query.order),
+      take: max + 1,
+    });
+    if (orders.length > max) {
+      throw new DomainException(
+        'EXPORT_TOO_LARGE',
+        `A exportação passa de ${max} linhas. Use mais filtros para reduzir o resultado.`,
+      );
+    }
+    return {
+      filename: exportFilename(now, this.config.appTimezone),
+      content: buildExportCsv(orders),
+    };
   }
 
   async findOne(id: string): Promise<WorkOrderResponse> {
@@ -253,6 +273,21 @@ export class WorkOrdersService {
     if (count === 0) {
       throw new DomainException('NOT_FOUND', 'Ordem de serviço não encontrada');
     }
+  }
+
+  private listWhere(actor: Actor, query: ExportWorkOrdersDto, now: Date) {
+    return buildWorkOrderWhere(
+      {
+        status: query.status,
+        priority: query.priority,
+        assigneeId: query.assigneeId,
+        overdue: query.overdue,
+        dueFrom: query.dueFrom ? new Date(query.dueFrom) : undefined,
+        dueTo: query.dueTo ? new Date(query.dueTo) : undefined,
+        q: query.q,
+      },
+      { actorId: actor.id, now },
+    );
   }
 
   private async findOrderOrThrow(id: string): Promise<WorkOrder> {

@@ -1,3 +1,5 @@
+import { IANAZone } from 'luxon';
+
 // Configuração tipada e validada. Classe abstrata como token de injeção (mesmo padrão do Clock):
 // quem precisa de configuração recebe `AppConfig`, nunca lê `process.env` direto.
 export abstract class AppConfig {
@@ -11,6 +13,10 @@ export abstract class AppConfig {
   abstract readonly loginRateLimit: number;
   abstract readonly loginRateTtlSeconds: number;
   abstract readonly swaggerEnabled: boolean;
+  /** Fuso IANA usado no CSV: prazo só com data e horário do nome do arquivo exportado. */
+  abstract readonly appTimezone: string;
+  abstract readonly exportMaxRows: number;
+  abstract readonly importMaxRows: number;
 }
 
 // O mesmo valor do .env.example (um teste confere): em produção ele é recusado.
@@ -88,6 +94,12 @@ export function loadAppConfig(env: RawEnv): AppConfig {
     problems.push('SWAGGER_ENABLED: use true ou false');
   }
 
+  const appTimezone = present(env.APP_TIMEZONE) ? env.APP_TIMEZONE.trim() : 'America/Sao_Paulo';
+  // O Luxon também aceita um offset solto ("-03:00"), que ignora o horário de verão: exige nome.
+  if (!/^[A-Za-z]/.test(appTimezone) || !IANAZone.isValidZone(appTimezone)) {
+    problems.push('APP_TIMEZONE: use um fuso IANA (ex.: America/Sao_Paulo)');
+  }
+
   const config: AppConfig = {
     nodeEnv: nodeEnv as AppConfig['nodeEnv'],
     port: integer('PORT', 3000, 1),
@@ -100,6 +112,9 @@ export function loadAppConfig(env: RawEnv): AppConfig {
     loginRateTtlSeconds: integer('LOGIN_RATE_TTL', 60, 1),
     // Em produção o Swagger só sobe se pedido; fora dela, sobe por padrão.
     swaggerEnabled: present(swaggerRaw) ? swaggerRaw === 'true' : !production,
+    appTimezone,
+    exportMaxRows: integer('EXPORT_MAX_ROWS', 10000, 1),
+    importMaxRows: integer('IMPORT_MAX_ROWS', 500, 1),
   };
 
   if (problems.length > 0) throw new InvalidEnvError(problems);
