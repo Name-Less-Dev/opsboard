@@ -8,7 +8,7 @@ export const HISTORY_PAGE_SIZE = 10;
 
 // Retry e `refetchOnWindowFocus` vêm do padrão do app (lib/query-client.ts): no máximo uma nova
 // tentativa, só em falha de rede ou 5xx. A página fica no estado da seção, não na URL.
-export function useWorkOrderHistory(orderId: string, page: number) {
+export function useWorkOrderHistory(orderId: string, page: number, enabled = true) {
   return useQuery({
     queryKey: workOrderKeys.historyPage(orderId, page),
     queryFn: ({ signal }) =>
@@ -18,5 +18,6 @@ export function useWorkOrderHistory(orderId: string, page: number) {
       ),
     // Mantém a página anterior na tela enquanto a próxima carrega.
     placeholderData: keepPreviousData,
+    enabled,
   });
 }

@@ -26,9 +26,16 @@ function HistorySkeleton() {
  * Busca e estados do histórico. Tudo fica dentro da seção: um erro aqui não derruba o resto do
  * detalhe. A página é estado local (não vai para a URL) e volta à 1 ao abrir outra ordem.
  */
-export function HistorySection({ orderId }: { orderId: string }) {
+export function HistorySection({
+  orderId,
+  enabled = true,
+}: {
+  orderId: string;
+  /** false para de buscar (ex.: a ordem acabou de ser excluída). */
+  enabled?: boolean;
+}) {
   const [page, setPage] = useState(1);
-  const query = useWorkOrderHistory(orderId, page);
+  const query = useWorkOrderHistory(orderId, page, enabled);
   const { data } = query;
   const headingRef = useRef<HTMLHeadingElement>(null);
   // Outra página (ou nova busca após uma ação) a caminho, com a anterior ainda na tela.

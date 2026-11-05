@@ -295,8 +295,10 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
         />
       )}
 
-      {/* key: outra ordem começa na página 1 do histórico. */}
-      <HistorySection key={order.id} orderId={order.id} />
+      {/* key: outra ordem começa na página 1 do histórico. Depois de excluir, a query do
+          histórico sai do cache e a página ainda re-renderiza antes de navegar: sem o
+          `enabled`, a seção criaria a query de novo e buscaria uma ordem que não existe (404). */}
+      <HistorySection key={order.id} orderId={order.id} enabled={!remove.isSuccess} />
 
       <ConfirmDialog
         open={confirmCancel}
