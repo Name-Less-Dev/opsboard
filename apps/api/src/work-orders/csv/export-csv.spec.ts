@@ -68,6 +68,18 @@ describe('buildExportCsv', () => {
     expect(row[2]).toBe('linha 1\nlinha 2\r\nlinha 3');
   });
 
+  it.each([
+    ['só LF', 'linha 1\nlinha 2'],
+    ['só CR', 'linha 1\rlinha 2'],
+    ['CRLF', 'linha 1\r\nlinha 2'],
+  ])('quebra de linha (%s) sai entre aspas e a linha continua inteira', (_label, description) => {
+    const csv = buildExportCsv([order({ description })]);
+    expect(csv).toContain(`;"${description}";`);
+    const rows: string[][] = parse(csv, { bom: true, delimiter: ';' });
+    expect(rows).toHaveLength(2);
+    expect(rows[1][2]).toBe(description);
+  });
+
   it('sem ordens, só o cabeçalho', () => {
     expect(buildExportCsv([])).toBe(`${BOM}${EXPORT_COLUMNS.join(';')}\r\n`);
   });

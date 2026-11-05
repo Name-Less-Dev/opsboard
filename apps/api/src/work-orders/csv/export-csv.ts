@@ -17,6 +17,8 @@ export const EXPORT_COLUMNS = [
   'updatedAt',
 ] as const;
 
+const QUOTE_LINE_BREAKS = /[\r\n]/;
+
 export const CSV_CONTENT_TYPE = 'text/csv; charset=utf-8';
 
 /** Uma linha do CSV. Texto livre passa por `neutralizeCell`; o resto é gerado por nós. */
@@ -37,13 +39,15 @@ export function toExportRow(order: WorkOrderResponse): string[] {
 
 /**
  * CSV no formato que o Excel em português abre direto: BOM (senão os acentos quebram), `;` e
- * CRLF. O csv-stringify põe aspas só quando a célula tem separador, aspas ou quebra de linha.
+ * CRLF. O csv-stringify põe aspas quando a célula tem separador, aspas ou o CRLF inteiro, mas
+ * não um LF ou CR sozinho: QUOTE_LINE_BREAKS cobre esse caso, senão a linha se partiria em duas.
  */
 export function buildExportCsv(orders: readonly WorkOrderResponse[]): string {
   return stringify([[...EXPORT_COLUMNS], ...orders.map(toExportRow)], {
     bom: true,
     delimiter: ';',
     record_delimiter: 'windows',
+    quoted_match: QUOTE_LINE_BREAKS,
   });
 }
 
