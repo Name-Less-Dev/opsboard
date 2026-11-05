@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../components/Button';
 import { buttonClass } from '../components/button-styles';
@@ -25,9 +26,19 @@ export function DashboardPage() {
   // Já há números na tela e outra busca está a caminho (botão, nova tentativa ou cache velho).
   const refreshing = data !== undefined && query.isFetching;
 
+  // `dataUpdatedAt` no momento do clique em "Atualizar" (ou "Tentar de novo"). Quando muda, a
+  // busca pedida terminou com sucesso e a região aria-live anuncia o novo horário.
+  const [refreshedFrom, setRefreshedFrom] = useState<number | null>(null);
+  const announcement =
+    data && refreshedFrom !== null && !query.isFetching && query.dataUpdatedAt !== refreshedFrom
+      ? `Painel atualizado às ${formatTime(data.generatedAt)}.`
+      : '';
+
   function refresh() {
     // Ignora clique repetido durante a busca (o botão usa aria-disabled, ver abaixo).
-    if (!query.isFetching) void query.refetch();
+    if (query.isFetching) return;
+    setRefreshedFrom(query.dataUpdatedAt);
+    void query.refetch();
   }
 
   return (
@@ -56,12 +67,13 @@ export function DashboardPage() {
       {query.isError && (
         // Com números anteriores, o erro aparece acima deles: o TanStack Query mantém o `data`
         // quando uma nova busca falha.
-        <ErrorState
-          error={query.error}
-          onRetry={() => void query.refetch()}
-          retrying={query.isFetching}
-        />
+        <ErrorState error={query.error} onRetry={refresh} retrying={query.isFetching} />
       )}
+
+      {/* Sempre no DOM: o leitor de tela só anuncia mudanças numa região que já existia. */}
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
 
       {data ? (
         <div aria-busy={refreshing} className="space-y-6">
