@@ -27,7 +27,7 @@ function invalidateOrder(queryClient: QueryClient, id: string) {
 }
 
 /** O que muda com qualquer ordem: a lista e os números do painel. */
-function invalidateCollections(queryClient: QueryClient) {
+export function invalidateCollections(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() }),
     queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),

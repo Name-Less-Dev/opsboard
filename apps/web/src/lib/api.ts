@@ -6,6 +6,7 @@ import { clearToken, getToken } from './session';
 
 export type ServerErrorCode = components['schemas']['ErrorCode'];
 export type ValidationDetail = components['schemas']['ValidationDetailDto'];
+export type ImportRowError = components['schemas']['ImportErrorDetailDto'];
 
 /**
  * Códigos que só o cliente produz:
@@ -24,7 +25,11 @@ export class ApiError extends Error {
    * não conhece, e a tela cai no texto padrão em vez de quebrar.
    */
   readonly code: ApiErrorCode | (string & {});
+  /** Por campo, só em VALIDATION_ERROR. */
   readonly details: ValidationDetail[];
+  /** Por linha, só em IMPORT_INVALID (no máximo 100); o total real vem em `totalErrors`. */
+  readonly rowErrors: ImportRowError[];
+  readonly totalErrors: number;
   readonly requestId: string | null;
 
   constructor(init: {
@@ -32,6 +37,8 @@ export class ApiError extends Error {
     code: ApiError['code'];
     message: string;
     details?: ValidationDetail[];
+    rowErrors?: ImportRowError[];
+    totalErrors?: number;
     requestId?: string | null;
   }) {
     // `message` é o texto da API, útil para depurar; a tela usa `code` (lib/error-messages.ts).
@@ -40,6 +47,8 @@ export class ApiError extends Error {
     this.statusCode = init.statusCode;
     this.code = init.code;
     this.details = init.details ?? [];
+    this.rowErrors = init.rowErrors ?? [];
+    this.totalErrors = init.totalErrors ?? this.rowErrors.length;
     this.requestId = init.requestId ?? null;
   }
 }
@@ -55,7 +64,8 @@ export function setUnauthorizedHandler(handler: () => void): void {
 type ErrorBody = {
   code: string;
   message: string;
-  details?: ValidationDetail[];
+  details?: unknown;
+  totalErrors?: unknown;
   requestId?: string;
 };
 
@@ -87,16 +97,27 @@ async function toApiError(response: Response): Promise<ApiError> {
       requestId: headerRequestId,
     });
   }
+  // O formato de `details` depende do `code`: por campo (VALIDATION_ERROR) ou por linha
+  // (IMPORT_INVALID). Cada um vai para o seu campo, para a tela nunca confundir os dois.
+  const details = Array.isArray(body.details) ? (body.details as unknown[]) : [];
+  const byRow = body.code === 'IMPORT_INVALID';
   return new ApiError({
     statusCode: response.status,
     code: body.code,
     message: body.message,
-    details: Array.isArray(body.details) ? body.details : [],
+    details: byRow ? [] : (details as ValidationDetail[]),
+    rowErrors: byRow ? (details as ImportRowError[]) : [],
+    totalErrors: typeof body.totalErrors === 'number' ? body.totalErrors : undefined,
     requestId: body.requestId ?? headerRequestId,
   });
 }
 
-async function request<T>(path: string, init: RequestInit): Promise<T> {
+/**
+ * Envia a requisição com o token e devolve a resposta de sucesso sem ler o corpo: quem chama
+ * decide se é JSON, arquivo ou nada. Erro (inclusive de rede) sai como `ApiError`, lido do
+ * corpo JSON pelo `code`, seja qual for o tipo da resposta de sucesso.
+ */
+async function send(path: string, init: RequestInit): Promise<Response> {
   const token = getToken();
   const headers = new Headers(init.headers);
   if (token) {
@@ -121,6 +142,11 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     }
     throw await toApiError(response);
   }
+  return response;
+}
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await send(path, init);
   // 204 (DELETE) não tem corpo: `response.json()` lançaria erro.
   if (response.status === 204) return undefined as T;
   // O tipo T é uma promessa do chamador sobre o formato da resposta;
@@ -146,4 +172,26 @@ export function apiPatch<T>(path: string, body: unknown): Promise<T> {
 
 export function apiDelete(path: string): Promise<void> {
   return request<void>(path, { method: 'DELETE' });
+}
+
+/**
+ * POST com `FormData` (upload de arquivo). Sem `Content-Type` manual: o navegador monta o
+ * `multipart/form-data` com o `boundary` certo.
+ */
+export function apiUpload<T>(path: string, body: FormData): Promise<T> {
+  return request<T>(path, { method: 'POST', body });
+}
+
+export type Download = { blob: Blob; contentDisposition: string | null };
+
+/**
+ * GET de um arquivo, com o token (um `<a href>` simples não enviaria o header). O corpo vem
+ * como Blob e o `Content-Disposition` volta para quem chama tirar o nome do arquivo.
+ */
+export async function apiDownload(path: string): Promise<Download> {
+  const response = await send(path, {});
+  return {
+    blob: await response.blob(),
+    contentDisposition: response.headers.get('Content-Disposition'),
+  };
 }

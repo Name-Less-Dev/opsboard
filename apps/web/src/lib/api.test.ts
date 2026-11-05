@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiDelete, apiGet, apiPatch, setUnauthorizedHandler } from './api';
+import {
+  ApiError,
+  apiDelete,
+  apiDownload,
+  apiGet,
+  apiPatch,
+  apiUpload,
+  setUnauthorizedHandler,
+} from './api';
 import { getToken, setToken } from './session';
 
 const REQUEST_ID = '0b6d2a4e-3f1c-4d9a-8e7b-5c2f1a0d9e8b';
@@ -154,5 +162,101 @@ describe('apiGet', () => {
     const fetchMock = respondWith(new Response(null, { status: 204 }));
     await expect(apiDelete('/work-orders/1')).resolves.toBeUndefined();
     expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].method).toBe('DELETE');
+  });
+});
+
+describe('apiUpload', () => {
+  it('envia FormData com POST e o token, sem definir Content-Type', async () => {
+    setToken('token-de-teste');
+    const fetchMock = respondWith(new Response(JSON.stringify({ dryRun: false, imported: 2 })));
+    const form = new FormData();
+    form.append('file', new File(['title;priority'], 'ordens.csv', { type: 'text/csv' }));
+
+    await expect(apiUpload('/work-orders/import?dryRun=false', form)).resolves.toEqual({
+      dryRun: false,
+      imported: 2,
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/work-orders/import?dryRun=false');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(form);
+    const headers = new Headers(init.headers);
+    expect(headers.get('Content-Type')).toBeNull();
+    expect(headers.get('Authorization')).toBe('Bearer token-de-teste');
+  });
+
+  it('IMPORT_INVALID: erros por linha em rowErrors e o total real, details vazio', async () => {
+    const rows = [{ row: 7, column: 'priority', code: 'INVALID_ENUM', message: 'm' }];
+    respondWith(
+      errorResponse(422, {
+        statusCode: 422,
+        code: 'IMPORT_INVALID',
+        message: 'x',
+        details: rows,
+        totalErrors: 150,
+        requestId: REQUEST_ID,
+      }),
+    );
+    const error = await caught(apiUpload('/work-orders/import', new FormData()));
+    expect(error).toMatchObject({
+      statusCode: 422,
+      code: 'IMPORT_INVALID',
+      rowErrors: rows,
+      totalErrors: 150,
+      details: [],
+    });
+  });
+
+  it('VALIDATION_ERROR continua indo para details, sem rowErrors', async () => {
+    const details = [{ field: 'dryRun', messages: ['dryRun must be a boolean value'] }];
+    respondWith(
+      errorResponse(400, { statusCode: 400, code: 'VALIDATION_ERROR', message: 'x', details }),
+    );
+    const error = await caught(apiUpload('/work-orders/import', new FormData()));
+    expect(error).toMatchObject({ details, rowErrors: [], totalErrors: 0 });
+  });
+});
+
+describe('apiDownload', () => {
+  it('lê o corpo como Blob e devolve o Content-Disposition', async () => {
+    setToken('token-de-teste');
+    const fetchMock = respondWith(
+      new Response('id;title', {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="opsboard-ordens-20261105-1430.csv"',
+        },
+      }),
+    );
+    const { blob, contentDisposition } = await apiDownload('/work-orders/export?status=OPEN');
+    expect(await blob.text()).toBe('id;title');
+    expect(contentDisposition).toBe('attachment; filename="opsboard-ordens-20261105-1430.csv"');
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/work-orders/export?status=OPEN');
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer token-de-teste');
+  });
+
+  it('erro em JSON vira ApiError pelo code, mesmo sendo uma rota de arquivo', async () => {
+    respondWith(
+      errorResponse(422, {
+        statusCode: 422,
+        code: 'EXPORT_TOO_LARGE',
+        message: 'x',
+        requestId: REQUEST_ID,
+      }),
+    );
+    const error = await caught(apiDownload('/work-orders/export'));
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ statusCode: 422, code: 'EXPORT_TOO_LARGE' });
+  });
+
+  it('401 com token derruba a sessão, como nas outras chamadas', async () => {
+    setToken('token-de-teste');
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    respondWith(errorResponse(401, { statusCode: 401, code: 'UNAUTHORIZED', message: 'x' }));
+    await caught(apiDownload('/work-orders/export'));
+    expect(handler).toHaveBeenCalledOnce();
+    expect(getToken()).toBeNull();
   });
 });
