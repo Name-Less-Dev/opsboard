@@ -26,18 +26,18 @@ export function ImportErrorTable({
         role="region"
         aria-labelledby="import-errors-caption"
         tabIndex={0}
-        className="max-h-[28rem] overflow-auto rounded-card border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="max-h-[28rem] overflow-auto rounded-card border border-control-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
-        <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+        <table className="w-full border-collapse text-left text-sm">
           <caption id="import-errors-caption" className="px-3 py-2 text-left font-medium">
             Erros por linha do arquivo
           </caption>
           <thead className="sticky top-0 bg-surface-muted">
             <tr>
-              <th scope="col" className="w-20 px-3 py-2 font-medium">
+              <th scope="col" className="w-16 px-3 py-2 font-medium">
                 Linha
               </th>
-              <th scope="col" className="w-44 px-3 py-2 font-medium">
+              <th scope="col" className="px-3 py-2 font-medium sm:w-48">
                 Coluna
               </th>
               <th scope="col" className="px-3 py-2 font-medium">
