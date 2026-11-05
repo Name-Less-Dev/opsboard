@@ -2,7 +2,12 @@ import path from 'node:path';
 import { config } from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcrypt';
-import { PrismaClient, WorkOrderPriority, WorkOrderStatus } from '../src/generated/prisma/client';
+import {
+  type Prisma,
+  PrismaClient,
+  WorkOrderPriority,
+  WorkOrderStatus,
+} from '../src/generated/prisma/client';
 
 config({ path: path.resolve(__dirname, '../../../.env') });
 
@@ -36,6 +41,8 @@ type SeedOrder = {
   status: WorkOrderStatus;
   assignee: 'ana' | 'bruno' | null;
   dueInDays: number; // negativo = prazo já passou
+  /** Passos extras do histórico, antes de a ordem ser iniciada. */
+  extra?: 'reassign' | 'unassign' | 'editContent' | 'editPlanning';
 };
 
 const orders: SeedOrder[] = [
@@ -46,6 +53,7 @@ const orders: SeedOrder[] = [
     status: 'OPEN',
     assignee: 'ana',
     dueInDays: 3,
+    extra: 'editContent',
   },
   {
     title: 'Vazamento na pia da copa',
@@ -54,6 +62,7 @@ const orders: SeedOrder[] = [
     status: 'IN_PROGRESS',
     assignee: 'bruno',
     dueInDays: -1,
+    extra: 'reassign',
   },
   {
     title: 'Impressora do RH não conecta na rede',
@@ -62,6 +71,7 @@ const orders: SeedOrder[] = [
     status: 'OPEN',
     assignee: null,
     dueInDays: -1,
+    extra: 'unassign',
   },
   {
     title: 'Lâmpadas queimadas no estacionamento',
@@ -86,6 +96,7 @@ const orders: SeedOrder[] = [
     status: 'OPEN',
     assignee: 'ana',
     dueInDays: 10,
+    extra: 'editPlanning',
   },
   {
     title: 'Instalar suporte de TV na sala de reunião',
@@ -145,45 +156,104 @@ async function main(): Promise<void> {
   });
   const operators = { ana, bruno };
 
+  const HOUR_MS = 60 * 60 * 1000;
+
   for (const [index, order] of orders.entries()) {
     const assigneeId = order.assignee ? operators[order.assignee].id : null;
     const dueDate = daysFromNow(order.dueInDays);
-    // Cronologia coerente: toda ordem nasce antes do próprio prazo e das mudanças de status.
+    // Cronologia coerente: a ordem nasce, recebe responsável e edições nas primeiras horas, é
+    // iniciada no dia seguinte e finalizada no outro; tudo antes de agora.
     const createdAt = daysFromNow(-(orders.length - index) - 5);
-    const startedAt = new Date(createdAt.getTime() + DAY_MS);
-    const finishedAt = new Date(createdAt.getTime() + 2 * DAY_MS);
+    const at = (hours: number) => new Date(createdAt.getTime() + hours * HOUR_MS);
     const worker = assigneeId ?? supervisor.id;
 
-    const changes: {
-      actorId: string;
-      fromStatus: WorkOrderStatus;
-      toStatus: WorkOrderStatus;
-      createdAt: Date;
-    }[] = [];
-    if (order.status === 'IN_PROGRESS' || order.status === 'DONE') {
-      changes.push({
-        actorId: worker,
-        fromStatus: 'OPEN',
-        toStatus: 'IN_PROGRESS',
-        createdAt: startedAt,
+    // Valores na criação: as edições extras partem deles e chegam aos valores atuais da ordem.
+    const original = {
+      title: order.extra === 'editContent' ? 'Trocar filtro do ar' : order.title,
+      description: order.extra === 'editContent' ? null : order.description,
+      priority: order.extra === 'editPlanning' ? ('MEDIUM' as const) : order.priority,
+      dueDate: order.extra === 'editPlanning' ? new Date(dueDate.getTime() - 3 * DAY_MS) : dueDate,
+    };
+
+    // Payloads no mesmo formato que a API grava (WorkOrdersService).
+    const events: Prisma.WorkOrderEventCreateWithoutWorkOrderInput[] = [];
+    const add = (event: Omit<Prisma.WorkOrderEventUncheckedCreateInput, 'workOrderId'>) =>
+      events.push({
+        actor: { connect: { id: event.actorId } },
+        type: event.type,
+        fromStatus: event.fromStatus,
+        toStatus: event.toStatus,
+        payload: event.payload,
+        createdAt: event.createdAt,
       });
-    }
-    if (order.status === 'DONE') {
-      changes.push({
-        actorId: worker,
-        fromStatus: 'IN_PROGRESS',
-        toStatus: 'DONE',
-        createdAt: finishedAt,
-      });
-    }
-    if (order.status === 'CANCELLED') {
-      changes.push({
+    const assign = (from: string | null, to: string | null, hours: number) =>
+      add({
         actorId: supervisor.id,
-        fromStatus: 'OPEN',
-        toStatus: 'CANCELLED',
-        createdAt: startedAt,
+        type: 'ASSIGNED',
+        payload: { from, to },
+        createdAt: at(hours),
+      });
+
+    // Criada sem responsável pela supervisora, que atribui em seguida.
+    add({
+      actorId: supervisor.id,
+      type: 'CREATED',
+      toStatus: 'OPEN',
+      createdAt,
+      payload: {
+        title: original.title,
+        description: original.description,
+        priority: original.priority,
+        dueDate: original.dueDate.toISOString(),
+        assigneeId: null,
+      },
+    });
+    if (order.extra === 'reassign') {
+      assign(null, ana.id, 1);
+      assign(ana.id, assigneeId, 2);
+    } else if (order.extra === 'unassign') {
+      assign(null, ana.id, 1);
+      assign(ana.id, null, 2);
+    } else if (assigneeId) {
+      assign(null, assigneeId, 1);
+    }
+    if (order.extra === 'editContent') {
+      add({
+        actorId: worker,
+        type: 'UPDATED',
+        createdAt: at(3),
+        payload: {
+          title: { from: original.title, to: order.title },
+          description: { from: original.description, to: order.description },
+        },
       });
     }
+    if (order.extra === 'editPlanning') {
+      add({
+        actorId: supervisor.id,
+        type: 'UPDATED',
+        createdAt: at(3),
+        payload: {
+          priority: { from: original.priority, to: order.priority },
+          dueDate: { from: original.dueDate.toISOString(), to: dueDate.toISOString() },
+        },
+      });
+    }
+
+    const status = (actorId: string, from: WorkOrderStatus, to: WorkOrderStatus, hours: number) =>
+      add({
+        actorId,
+        type: 'STATUS_CHANGED',
+        fromStatus: from,
+        toStatus: to,
+        payload: {},
+        createdAt: at(hours),
+      });
+    if (order.status === 'IN_PROGRESS' || order.status === 'DONE') {
+      status(worker, 'OPEN', 'IN_PROGRESS', 24);
+    }
+    if (order.status === 'DONE') status(worker, 'IN_PROGRESS', 'DONE', 48);
+    if (order.status === 'CANCELLED') status(supervisor.id, 'OPEN', 'CANCELLED', 24);
 
     await prisma.workOrder.create({
       data: {
@@ -195,30 +265,8 @@ async function main(): Promise<void> {
         createdById: supervisor.id,
         dueDate,
         createdAt,
-        updatedAt: changes.at(-1)?.createdAt ?? createdAt,
-        events: {
-          create: [
-            {
-              actorId: supervisor.id,
-              type: 'CREATED',
-              toStatus: 'OPEN',
-              createdAt,
-              // Mesmo formato que a API grava ao criar uma ordem.
-              payload: {
-                title: order.title,
-                description: order.description,
-                priority: order.priority,
-                dueDate: dueDate.toISOString(),
-                assigneeId,
-              },
-            },
-            ...changes.map((change) => ({
-              ...change,
-              type: 'STATUS_CHANGED' as const,
-              payload: {},
-            })),
-          ],
-        },
+        updatedAt: events.at(-1)?.createdAt ?? createdAt,
+        events: { create: events },
       },
     });
   }
