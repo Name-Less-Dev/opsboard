@@ -25,7 +25,14 @@ export function AuthenticatedLayout() {
           <span className="text-lg font-semibold">OpsBoard</span>
 
           <nav aria-label="Principal">
+            {/* O NavLink marca o item ativo com aria-current="page"; "Ordens" fica ativo também
+                no detalhe e na edição (/orders/...). */}
             <ul className="flex gap-1">
+              <li>
+                <NavLink to="/dashboard" className={navLinkClass}>
+                  Painel
+                </NavLink>
+              </li>
               <li>
                 <NavLink to="/orders" className={navLinkClass}>
                   Ordens

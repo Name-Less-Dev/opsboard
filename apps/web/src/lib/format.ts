@@ -16,3 +16,10 @@ const dateTimeFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', ti
 export function formatDateTime(iso: string): string {
   return dateTimeFormat.format(new Date(iso));
 }
+
+const timeFormat = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+/** Só a hora de um instante ISO, no fuso do navegador, ex.: "14:05". */
+export function formatTime(iso: string): string {
+  return timeFormat.format(new Date(iso));
+}

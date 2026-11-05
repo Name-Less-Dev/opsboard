@@ -63,7 +63,7 @@ describe('Lista de ordens (/orders)', () => {
         ]),
       ),
     );
-    renderAt('/');
+    renderAt('/orders');
 
     await screen.findByRole('table', { name: 'Ordens de serviço' });
     expect(url()).toBe('/orders');
