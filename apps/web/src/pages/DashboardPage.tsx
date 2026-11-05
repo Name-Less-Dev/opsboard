@@ -144,13 +144,17 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
         <h2 id="painel-resumo" className={sectionTitle}>
           Resumo
         </h2>
-        <dl className="grid grid-cols-2 gap-3 sm:max-w-md">
+        <dl className="grid grid-cols-2 gap-3 sm:max-w-sm">
           <div>
-            <dt className="text-sm text-muted">Total de ordens</dt>
+            <dt className="text-sm text-muted">
+              Total <span className="block text-xs">todas as ordens</span>
+            </dt>
             <dd className="text-2xl font-semibold tabular-nums">{formatNumber(totals.total)}</dd>
           </div>
           <div>
-            <dt className="text-sm text-muted">Ativas (abertas + em andamento)</dt>
+            <dt className="text-sm text-muted">
+              Ativas <span className="block text-xs">abertas + em andamento</span>
+            </dt>
             <dd className="text-2xl font-semibold tabular-nums">{formatNumber(totals.active)}</dd>
           </div>
         </dl>
