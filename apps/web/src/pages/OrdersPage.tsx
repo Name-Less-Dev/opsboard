@@ -7,6 +7,8 @@ import { ErrorState } from '../components/ErrorState';
 import { Pagination } from '../components/Pagination';
 import { FlashMessage } from '../components/FlashMessage';
 import { Spinner } from '../components/Spinner';
+import { useAuth } from '../features/auth/auth-context';
+import { ExportCsvButton } from '../features/work-orders/csv/ExportCsvButton';
 import type { WorkOrderPage } from '../features/work-orders/labels';
 import {
   clearFilters,
@@ -35,6 +37,7 @@ export function OrdersPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   // Aviso vindo de outra tela (ex.: "Ordem excluída.").
   const flash = useFlash();
+  const { user } = useAuth();
 
   // O `data` do TanStack Query some quando a requisição falha. Guardar a última resposta boa
   // permite manter a lista na tela durante o erro, em vez de apagá-la. Atualizar o estado
@@ -73,9 +76,17 @@ export function OrdersPage() {
     <main className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Ordens de serviço</h1>
-        <Link to="/orders/new" className={buttonClass('primary', 'md')}>
-          Nova ordem
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {/* Só o supervisor importa (a API responde 403 para o operador). */}
+          {user?.role === 'SUPERVISOR' && (
+            <Link to="/orders/import" className={buttonClass('secondary', 'md')}>
+              Importar CSV
+            </Link>
+          )}
+          <Link to="/orders/new" className={buttonClass('primary', 'md')}>
+            Nova ordem
+          </Link>
+        </div>
       </div>
 
       <FlashMessage message={flash.message} onDismiss={flash.dismiss} />
@@ -87,22 +98,31 @@ export function OrdersPage() {
         aria-busy={updating || firstLoad}
         className="space-y-4"
       >
-        <div className="flex min-h-7 items-center justify-between gap-4">
-          {/* Alvo do foco ao trocar de página: fica logo acima da lista, não dos filtros. */}
-          <h2
-            id="results-title"
-            ref={headingRef}
-            tabIndex={-1}
-            className="scroll-mt-4 text-lg font-semibold outline-none"
-          >
-            Resultados
-          </h2>
-          {updating && (
-            <span className="inline-flex items-center gap-2 text-sm text-muted">
-              <Spinner />
-              Atualizando…
-            </span>
-          )}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="flex min-h-7 items-center gap-4">
+            {/* Alvo do foco ao trocar de página: fica logo acima da lista, não dos filtros. */}
+            <h2
+              id="results-title"
+              ref={headingRef}
+              tabIndex={-1}
+              className="scroll-mt-4 text-lg font-semibold outline-none"
+            >
+              Resultados
+            </h2>
+            {updating && (
+              <span className="inline-flex items-center gap-2 text-sm text-muted">
+                <Spinner />
+                Atualizando…
+              </span>
+            )}
+          </div>
+          {/* Exporta pelos filtros da URL, não pelo que está na tela: o total só é mostrado
+              quando a lista na tela corresponde a eles. */}
+          <ExportCsvButton
+            params={params}
+            total={shown && !updating ? shown.page.total : null}
+            disabled={isDueRangeInvalid(params)}
+          />
         </div>
 
         {/* Sempre no DOM: a região precisa existir antes de o texto mudar para ser anunciada.

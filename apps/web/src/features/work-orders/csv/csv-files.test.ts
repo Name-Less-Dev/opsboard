@@ -3,6 +3,7 @@ import { DEFAULT_LIST_PARAMS, toApiQuery, type ListParams } from '../list-params
 import {
   buildExportQuery,
   buildTemplateCsv,
+  exportHint,
   FALLBACK_EXPORT_FILENAME,
   filenameFromContentDisposition,
   MAX_IMPORT_BYTES,
@@ -117,5 +118,16 @@ describe('validateCsvFile', () => {
     [{ name: 'ordens.csv', size: MAX_IMPORT_BYTES + 1 }, /1 MB/],
   ])('recusa %j', (file, message) => {
     expect(validateCsvFile(file)).toMatch(message);
+  });
+});
+
+describe('exportHint', () => {
+  it.each([
+    [null, 'Exporta os resultados filtrados'],
+    [0, 'Nenhum resultado para exportar'],
+    [1, 'Exporta 1 resultado filtrado'],
+    [1234, 'Exporta os 1.234 resultados filtrados'],
+  ])('%j → %s', (total, expected) => {
+    expect(exportHint(total)).toBe(expected);
   });
 });

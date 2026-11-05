@@ -1,4 +1,5 @@
 import { todayDateInput } from '../../../lib/dates';
+import { formatCount } from '../../../lib/format';
 import { toApiQuery, type ListParams } from '../list-params';
 
 // Funções puras da exportação e da importação CSV: sem fetch, sem DOM, sem React.
@@ -17,6 +18,14 @@ export function buildExportQuery(params: ListParams): URLSearchParams {
   query.delete('page');
   query.delete('pageSize');
   return query;
+}
+
+/** Texto de apoio do botão: quantos resultados vão no arquivo, quando já se sabe. */
+export function exportHint(total: number | null): string {
+  if (total === null) return 'Exporta os resultados filtrados';
+  if (total === 0) return 'Nenhum resultado para exportar';
+  if (total === 1) return 'Exporta 1 resultado filtrado';
+  return `Exporta os ${formatCount(total, 'resultado filtrado', 'resultados filtrados')}`;
 }
 
 /**
