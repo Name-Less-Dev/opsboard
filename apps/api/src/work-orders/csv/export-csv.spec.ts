@@ -62,7 +62,8 @@ describe('buildExportCsv', () => {
 
   it('escapa separador, aspas, vírgula e quebra de linha (lido de volta igual)', () => {
     const tricky = order({ title: 'A; "B", C', description: 'linha 1\nlinha 2\r\nlinha 3' });
-    const [, row] = parse<string[]>(buildExportCsv([tricky]), { bom: true, delimiter: ';' });
+    const rows: string[][] = parse(buildExportCsv([tricky]), { bom: true, delimiter: ';' });
+    const row = rows[1];
     expect(row[1]).toBe('A; "B", C');
     expect(row[2]).toBe('linha 1\nlinha 2\r\nlinha 3');
   });

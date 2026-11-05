@@ -1,30 +1,33 @@
 import { HttpException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
-import { DomainException } from './domain.exception';
-import type { ErrorCode, ValidationDetail } from './error-code';
+import { DomainException, ImportInvalidException } from './domain.exception';
+import type { ErrorResponse } from './error-code';
 
-export type MappedError = {
-  statusCode: number;
-  code: ErrorCode;
-  message: string;
-  details?: ValidationDetail[];
+export type MappedError = Pick<
+  ErrorResponse,
+  'statusCode' | 'code' | 'message' | 'details' | 'totalErrors'
+> & {
   // true quando o detalhe original precisa ir para o log (5xx): a resposta nunca o carrega.
   logInternally: boolean;
 };
 
 // Texto por status para erros do framework (guards, pipes, rota inexistente, throttler).
 // O texto original do Nest é ignorado: vem em inglês e às vezes expõe detalhes ("Cannot GET /x").
-const FRAMEWORK_ERRORS: Record<number, { code: ErrorCode; message: string }> = {
+const FRAMEWORK_ERRORS: Record<number, { code: ErrorResponse['code']; message: string }> = {
   400: { code: 'VALIDATION_ERROR', message: 'Requisição inválida' },
   401: { code: 'UNAUTHORIZED', message: 'Autenticação necessária' },
   403: { code: 'FORBIDDEN', message: 'Sem permissão para esta ação' },
   404: { code: 'NOT_FOUND', message: 'Recurso não encontrado' },
   409: { code: 'CONFLICT', message: 'Conflito com o estado atual do recurso' },
+  413: { code: 'PAYLOAD_TOO_LARGE', message: 'Requisição acima do tamanho máximo' },
   429: { code: 'TOO_MANY_REQUESTS', message: 'Muitas tentativas. Aguarde e tente novamente' },
   503: { code: 'SERVICE_UNAVAILABLE', message: 'Serviço indisponível' },
 };
 
-const PRISMA_ERRORS: Record<string, { statusCode: number; code: ErrorCode; message: string }> = {
+const PRISMA_ERRORS: Record<
+  string,
+  { statusCode: number; code: ErrorResponse['code']; message: string }
+> = {
   P2025: { statusCode: 404, code: 'NOT_FOUND', message: 'Registro não encontrado' },
   P2002: { statusCode: 409, code: 'CONFLICT', message: 'Já existe um registro com estes dados' },
   P2003: { statusCode: 409, code: 'CONFLICT', message: 'Registro relacionado não encontrado' },
@@ -46,6 +49,7 @@ export function mapError(error: unknown): MappedError {
       code: error.code,
       message: error.message,
       ...(error.details ? { details: error.details } : {}),
+      ...(error instanceof ImportInvalidException ? { totalErrors: error.totalErrors } : {}),
       logInternally: error.getStatus() >= 500,
     };
   }

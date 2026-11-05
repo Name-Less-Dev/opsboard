@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString, Length, MaxLength, ValidateIf } from 'class-validator';
 import { WorkOrderPriority } from '../../generated/prisma/enums';
+import { DESCRIPTION_MAX, TITLE_MAX, TITLE_MIN } from '../work-order-limits';
 import { IsDateTimeWithZone, Trim } from './validators';
 
 // @IsOptional também pula a validação de `null`. Nestes campos, ausente pode, mas nulo não.
@@ -8,23 +9,23 @@ const IfPresent = () => ValidateIf((_object, value) => value !== undefined);
 
 // Sem status nem responsável: o forbidNonWhitelisted devolve 400 se vierem aqui.
 export class UpdateWorkOrderDto {
-  @ApiPropertyOptional({ minLength: 3, maxLength: 120 })
+  @ApiPropertyOptional({ minLength: TITLE_MIN, maxLength: TITLE_MAX })
   @Trim()
   @IfPresent()
   @IsString()
-  @Length(3, 120)
+  @Length(TITLE_MIN, TITLE_MAX)
   title?: string;
 
   @ApiPropertyOptional({
     type: String,
-    maxLength: 2000,
+    maxLength: DESCRIPTION_MAX,
     nullable: true,
     description: 'null limpa a descrição',
   })
   @Trim()
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
+  @MaxLength(DESCRIPTION_MAX)
   description?: string | null;
 
   @ApiPropertyOptional({

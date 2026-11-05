@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../clock/clock';
 import { AppConfig } from '../config/app-config';
-import { DomainException, validationError } from '../common/errors/domain.exception';
+import {
+  DomainException,
+  ImportInvalidException,
+  validationError,
+} from '../common/errors/domain.exception';
 import { Prisma, type WorkOrder } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { buildExportCsv, exportFilename } from './csv/export-csv';
+import { parseImportFile } from './csv/import-file';
+import {
+  buildReport,
+  type ImportedOrder,
+  type ImportReport,
+  normalizeEmail,
+  type RowError,
+  validateRow,
+} from './csv/import-row';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ExportWorkOrdersDto } from './dto/export-work-orders.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
@@ -34,6 +47,45 @@ export type WorkOrderPage = {
 };
 
 export type CsvExport = { filename: string; content: string };
+
+export type ImportResult = ({ dryRun: true } & ImportReport) | { dryRun: false; imported: number };
+
+/** Dados de uma ordem nova, já validados e com o responsável resolvido. */
+export type NewWorkOrder = ImportedOrder;
+
+// 500 linhas viram 1.000 INSERTs numa transação só; o padrão do Prisma (5 s) é curto para isso
+// num banco mais lento. O teto evita uma transação presa segurando a conexão.
+const IMPORT_TRANSACTION_TIMEOUT_MS = 60_000;
+
+/**
+ * A gravação da criação (Dia 3): a ordem e o evento CREATED, no cliente de transação recebido.
+ * A criação pela API e a importação CSV passam por aqui; `source` só existe na importação.
+ */
+async function insertWorkOrder(
+  tx: Prisma.TransactionClient,
+  actorId: string,
+  data: NewWorkOrder,
+  source?: 'csv_import',
+): Promise<WorkOrderResponse> {
+  const created = await tx.workOrder.create({
+    data: { ...data, createdById: actorId },
+    select: WORK_ORDER_SELECT,
+  });
+  await tx.workOrderEvent.create({
+    data: {
+      workOrderId: created.id,
+      actorId,
+      type: 'CREATED',
+      toStatus: created.status,
+      payload: {
+        ...data,
+        dueDate: data.dueDate.toISOString(),
+        ...(source ? { source } : {}),
+      },
+    },
+  });
+  return created;
+}
 
 type Denied = { allowed: false; reason: 'INVALID_TRANSITION' | 'ORDER_FINAL' | 'FORBIDDEN' };
 
@@ -87,7 +139,7 @@ export class WorkOrdersService {
     if (assigneeId !== null && assigneeId !== actor.id) {
       await this.assertUserExists(assigneeId);
     }
-    const data = {
+    const data: NewWorkOrder = {
       title: dto.title,
       description: dto.description ?? null,
       priority: dto.priority,
@@ -95,22 +147,59 @@ export class WorkOrdersService {
       assigneeId,
     };
 
-    return this.prisma.$transaction(async (tx) => {
-      const created = await tx.workOrder.create({
-        data: { ...data, createdById: actor.id },
-        select: WORK_ORDER_SELECT,
-      });
-      await tx.workOrderEvent.create({
-        data: {
-          workOrderId: created.id,
-          actorId: actor.id,
-          type: 'CREATED',
-          toStatus: created.status,
-          payload: { ...data, dueDate: data.dueDate.toISOString() },
-        },
-      });
-      return created;
-    });
+    return this.prisma.$transaction((tx) => insertWorkOrder(tx, actor.id, data));
+  }
+
+  /**
+   * Importação CSV, tudo ou nada. Erro no arquivo → 400; erro em alguma linha → relatório (dryRun)
+   * ou 422 sem gravar nada. Os e-mails dos responsáveis são resolvidos numa consulta só.
+   */
+  async importCsv(
+    actor: Actor,
+    file: Uint8Array | undefined,
+    dryRun: boolean,
+  ): Promise<ImportResult> {
+    if (!file) {
+      throw new DomainException(
+        'IMPORT_FILE_INVALID',
+        'Envie um arquivo CSV no campo "file" (multipart/form-data).',
+      );
+    }
+    const parsed = parseImportFile(file, this.config.importMaxRows);
+    if (!parsed.ok) {
+      throw new DomainException('IMPORT_FILE_INVALID', parsed.message);
+    }
+    const records = parsed.value;
+
+    const emails = records
+      .map((record) => normalizeEmail(record.values.assigneeEmail))
+      .filter((email) => email !== null);
+    const usersByEmail = await this.users.findIdsByEmails(emails);
+    const context = { now: this.clock.now(), timezone: this.config.appTimezone, usersByEmail };
+
+    const orders: NewWorkOrder[] = [];
+    const errors: RowError[] = [];
+    for (const record of records) {
+      const result = validateRow(record, context);
+      if (result.ok) orders.push(result.value);
+      else errors.push(...result.errors);
+    }
+    const report = buildReport(records.length, errors);
+
+    if (dryRun) return { dryRun: true, ...report };
+    if (!report.valid) throw new ImportInvalidException(report.errors, report.totalErrors);
+
+    // Sequencial de propósito: a transação interativa usa uma conexão só, e a ordem de criação
+    // segue a do arquivo. Qualquer falha desfaz todas as ordens e todos os eventos.
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (const order of orders) {
+          await insertWorkOrder(tx, actor.id, order, 'csv_import');
+        }
+      },
+      { timeout: IMPORT_TRANSACTION_TIMEOUT_MS },
+    );
+    return { dryRun: false, imported: orders.length };
   }
 
   async findPage(actor: Actor, query: ListWorkOrdersDto): Promise<WorkOrderPage> {

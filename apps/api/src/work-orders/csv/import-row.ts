@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { WorkOrderPriority } from '../../generated/prisma/enums';
+import { DESCRIPTION_MAX, TITLE_MAX, TITLE_MIN } from '../work-order-limits';
 import { PRIORITY_LABELS } from './csv-labels';
 import { IMPORT_COLUMNS, type ImportColumn, type ImportRecord } from './import-file';
 
@@ -26,9 +27,6 @@ export type RowError = {
 
 export type FieldResult<T> = { ok: true; value: T } | { ok: false; code: RowErrorCode };
 
-export const TITLE_MIN = 3;
-export const TITLE_MAX = 120;
-export const DESCRIPTION_MAX = 2000;
 export const MAX_REPORTED_ERRORS = 100;
 
 /** Sem acento e em minúsculas: "Média", "MEDIA" e "média" viram "media". */

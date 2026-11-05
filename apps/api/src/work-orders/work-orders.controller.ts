@@ -8,8 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -26,14 +31,17 @@ import { Role } from '../generated/prisma/enums';
 import type { PublicUser } from '../users/users.service';
 import { ApiErrors } from '../common/errors/api-errors.decorator';
 import { CSV_CONTENT_TYPE } from './csv/export-csv';
+import { IMPORT_MAX_BYTES, UploadErrorsInterceptor } from './csv/upload-errors.interceptor';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ExportWorkOrdersDto } from './dto/export-work-orders.dto';
+import { ImportWorkOrdersQueryDto } from './dto/import-work-orders.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
 import { WorkOrderPageResponseDto, WorkOrderResponseDto } from './dto/work-order-response.dto';
 import { UpdateAssigneeDto } from './dto/update-assignee.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
+  type ImportResult,
   type WorkOrderPage,
   type WorkOrderResponse,
   WorkOrdersService,
@@ -96,6 +104,32 @@ export class WorkOrdersController {
       type: CSV_CONTENT_TYPE,
       disposition: `attachment; filename="${filename}"`,
     });
+  }
+
+  // Guards rodam antes dos interceptors: operador recebe 403 sem o arquivo ser lido.
+  // Sem `storage` nem `dest`, o Multer guarda o arquivo só em memória (`file.buffer`), nunca em disco.
+  @Post('import')
+  @Roles(Role.SUPERVISOR)
+  @UseInterceptors(
+    UploadErrorsInterceptor,
+    FileInterceptor('file', { limits: { fileSize: IMPORT_MAX_BYTES, files: 1 } }),
+  )
+  @ApiOperation({
+    summary: 'Importa ordens de um CSV (somente supervisor)',
+    description:
+      'Tudo ou nada. dryRun=true só valida (200 com o relatório); dryRun=false grava (201) ou devolve 422 IMPORT_INVALID sem gravar nada.',
+  })
+  @ApiErrors(400, 403, 413, 422)
+  async importCsv(
+    @CurrentUser() actor: PublicUser,
+    @Query() query: ImportWorkOrdersQueryDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ImportResult> {
+    const result = await this.workOrders.importCsv(actor, file?.buffer, query.dryRun);
+    // Validar não cria nada (200); importar cria as ordens (201).
+    res.status(result.dryRun ? 200 : 201);
+    return result;
   }
 
   @Get(':id')

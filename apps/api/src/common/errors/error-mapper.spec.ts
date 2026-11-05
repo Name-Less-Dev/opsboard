@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ThrottlerException } from '@nestjs/throttler';
 import { Prisma } from '../../generated/prisma/client';
-import { DomainException, validationError } from './domain.exception';
+import { DomainException, ImportInvalidException, validationError } from './domain.exception';
 import { type DomainErrorCode, ERROR_STATUS } from './error-code';
 import { mapError } from './error-mapper';
 
@@ -37,6 +37,9 @@ describe('mapError', () => {
       ['CONFLICT', 409],
       ['TOO_MANY_REQUESTS', 429],
       ['SERVICE_UNAVAILABLE', 503],
+      ['IMPORT_FILE_INVALID', 400],
+      ['PAYLOAD_TOO_LARGE', 413],
+      ['EXPORT_TOO_LARGE', 422],
     ])('%s → %i, com a mensagem do domínio e sem details', (code, status) => {
       expect(mapError(new DomainException(code, 'Mensagem do domínio'))).toEqual({
         statusCode: status,
@@ -68,6 +71,24 @@ describe('mapError', () => {
         message: 'Informe ao menos um campo',
         details: [],
       });
+    });
+
+    it('IMPORT_INVALID leva os erros por linha em details e o total real em totalErrors', () => {
+      const details = [{ row: 7, column: 'priority', code: 'INVALID_ENUM', message: 'm' }];
+      expect(mapError(new ImportInvalidException(details, 150))).toEqual({
+        statusCode: 422,
+        code: 'IMPORT_INVALID',
+        message: 'O arquivo tem 150 erros; nenhuma ordem foi importada',
+        details,
+        totalErrors: 150,
+        logInternally: false,
+      });
+    });
+
+    it('IMPORT_INVALID com um erro usa o singular', () => {
+      expect(mapError(new ImportInvalidException([], 1)).message).toBe(
+        'O arquivo tem 1 erro; nenhuma ordem foi importada',
+      );
     });
 
     it('details é descartado em códigos que não são de validação', () => {
@@ -123,11 +144,11 @@ describe('mapError', () => {
         'Serviço indisponível',
       ],
       [
-        'outro 4xx',
+        'corpo grande demais',
         new PayloadTooLargeException(),
         413,
-        'HTTP_ERROR',
-        'Requisição não pôde ser atendida',
+        'PAYLOAD_TOO_LARGE',
+        'Requisição acima do tamanho máximo',
       ],
       [
         'status sem classe própria',

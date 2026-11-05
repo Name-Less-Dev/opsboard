@@ -20,7 +20,7 @@ import { IsDateTimeWithZone, IsNotBefore, Trim } from './validators';
 const AsList = () => Transform(({ value }: { value: unknown }) => parseList(value));
 
 // Query string chega como texto: só "true" e "false" viram booleano; o resto cai no @IsBoolean (400).
-const AsBoolean = () =>
+export const AsBoolean = () =>
   Transform(({ value }: { value: unknown }) =>
     value === 'true' ? true : value === 'false' ? false : value,
   );

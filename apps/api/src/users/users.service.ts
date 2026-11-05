@@ -30,6 +30,19 @@ export class UsersService {
     });
   }
 
+  /**
+   * E-mail em minúsculas → id, para os e-mails pedidos que existem. Uma consulta só, sem
+   * diferenciar maiúsculas; o resto do usuário (e o hash) nem sai do banco.
+   */
+  async findIdsByEmails(emails: readonly string[]): Promise<Map<string, string>> {
+    if (emails.length === 0) return new Map();
+    const users = await this.prisma.user.findMany({
+      where: { email: { in: [...new Set(emails)], mode: 'insensitive' } },
+      select: { id: true, email: true },
+    });
+    return new Map(users.map((user) => [user.email.toLowerCase(), user.id]));
+  }
+
   // Desempate por id: dois usuários com o mesmo nome saem sempre na mesma ordem.
   findAll(): Promise<UserSummary[]> {
     return this.prisma.user.findMany({

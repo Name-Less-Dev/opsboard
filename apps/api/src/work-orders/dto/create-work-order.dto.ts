@@ -1,20 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString, IsUUID, Length, MaxLength } from 'class-validator';
 import { WorkOrderPriority } from '../../generated/prisma/enums';
+import { DESCRIPTION_MAX, TITLE_MAX, TITLE_MIN } from '../work-order-limits';
 import { IsDateTimeWithZone, IsNotInPast, Trim } from './validators';
 
 export class CreateWorkOrderDto {
-  @ApiProperty({ minLength: 3, maxLength: 120, example: 'Trocar filtro do ar-condicionado' })
+  @ApiProperty({
+    minLength: TITLE_MIN,
+    maxLength: TITLE_MAX,
+    example: 'Trocar filtro do ar-condicionado',
+  })
   @Trim()
   @IsString()
-  @Length(3, 120)
+  @Length(TITLE_MIN, TITLE_MAX)
   title!: string;
 
-  @ApiPropertyOptional({ type: String, maxLength: 2000, nullable: true })
+  @ApiPropertyOptional({ type: String, maxLength: DESCRIPTION_MAX, nullable: true })
   @Trim()
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
+  @MaxLength(DESCRIPTION_MAX)
   description?: string | null;
 
   @ApiProperty({ enum: WorkOrderPriority, enumName: 'WorkOrderPriority' })
