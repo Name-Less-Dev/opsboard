@@ -26,7 +26,7 @@ function makeEvent(overrides: Partial<WorkOrderEvent> & Pick<WorkOrderEvent, 'ty
     details: null,
     createdAt: '2026-11-04T15:00:00.000Z',
     ...overrides,
-  } as WorkOrderEvent;
+  };
 }
 
 /** Responde o histórico com `events` paginados, como a API, e conta as requisições. */
