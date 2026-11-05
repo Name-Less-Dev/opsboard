@@ -202,25 +202,29 @@ Toda resposta de erro, de qualquer rota, tem este formato:
 ```
 
 - `code` é estável (UPPER_SNAKE_CASE) e é o que o front usa; `message` é legível, em português, e pode mudar.
-- `details` só existe em `VALIDATION_ERROR` (sempre presente nele, mesmo vazio): uma entrada por campo, inclusive de query params e do `:id` da rota.
+- `details` só existe em `VALIDATION_ERROR` e `IMPORT_INVALID` (sempre presente nos dois, mesmo vazio). O formato depende do `code`: em `VALIDATION_ERROR`, uma entrada `{ field, messages }` por campo, inclusive de query params e do `:id` da rota; em `IMPORT_INVALID`, até 100 entradas `{ row, column, code, message }`, com o total real em `totalErrors`.
 - `requestId` também volta no header `x-request-id`. Se o cliente enviar um `x-request-id` válido (até 128 caracteres de letras, números, `.`, `_` e `-`), ele é reaproveitado.
 - Em 500, a resposta nunca traz stack trace, nome de tabela ou mensagem do Prisma: o detalhe vai para o log com o mesmo `requestId`.
 - O login continua com a mesma mensagem para senha errada e e-mail inexistente.
 
-| `code`                | Status | Quando                                                              |
-| --------------------- | ------ | ------------------------------------------------------------------- |
-| `VALIDATION_ERROR`    | 400    | Payload, query ou parâmetro de rota inválido; JSON malformado       |
-| `UNAUTHORIZED`        | 401    | Token ausente, inválido ou expirado; credenciais inválidas          |
-| `FORBIDDEN`           | 403    | Ação válida no fluxo, mas sem permissão para este usuário           |
-| `NOT_FOUND`           | 404    | Ordem, registro ou rota inexistente                                 |
-| `INVALID_TRANSITION`  | 409    | Transição de status fora do grafo                                   |
-| `ORDER_FINALIZED`     | 409    | Ordem em estado final não pode ser alterada                         |
-| `CONCURRENT_UPDATE`   | 409    | Outra requisição alterou a ordem entre a leitura e a gravação       |
-| `CONFLICT`            | 409    | Violação de unicidade ou de chave estrangeira no banco              |
-| `TOO_MANY_REQUESTS`   | 429    | Limite de tentativas de login excedido                              |
-| `HTTP_ERROR`          | 4xx    | Outro erro HTTP do framework (ex.: 405, 413), com o status original |
-| `INTERNAL_ERROR`      | 500    | Erro inesperado; detalhe só no log                                  |
-| `SERVICE_UNAVAILABLE` | 503    | `GET /health` com o banco fora do ar                                |
+| `code`                | Status | Quando                                                            |
+| --------------------- | ------ | ----------------------------------------------------------------- |
+| `VALIDATION_ERROR`    | 400    | Payload, query ou parâmetro de rota inválido; JSON malformado     |
+| `UNAUTHORIZED`        | 401    | Token ausente, inválido ou expirado; credenciais inválidas        |
+| `FORBIDDEN`           | 403    | Ação válida no fluxo, mas sem permissão para este usuário         |
+| `NOT_FOUND`           | 404    | Ordem, registro ou rota inexistente                               |
+| `INVALID_TRANSITION`  | 409    | Transição de status fora do grafo                                 |
+| `ORDER_FINALIZED`     | 409    | Ordem em estado final não pode ser alterada                       |
+| `CONCURRENT_UPDATE`   | 409    | Outra requisição alterou a ordem entre a leitura e a gravação     |
+| `CONFLICT`            | 409    | Violação de unicidade ou de chave estrangeira no banco            |
+| `TOO_MANY_REQUESTS`   | 429    | Limite de tentativas de login excedido                            |
+| `EXPORT_TOO_LARGE`    | 422    | Exportação acima de `EXPORT_MAX_ROWS` linhas                      |
+| `IMPORT_FILE_INVALID` | 400    | Arquivo de importação inválido (vazio, cabeçalho, UTF-8, limites) |
+| `IMPORT_INVALID`      | 422    | Importação com erro em alguma linha; nada foi gravado             |
+| `PAYLOAD_TOO_LARGE`   | 413    | Corpo ou arquivo acima do limite (1 MB na importação)             |
+| `HTTP_ERROR`          | 4xx    | Outro erro HTTP do framework (ex.: 405), com o status original    |
+| `INTERNAL_ERROR`      | 500    | Erro inesperado; detalhe só no log                                |
+| `SERVICE_UNAVAILABLE` | 503    | `GET /health` com o banco fora do ar                              |
 
 No Swagger, toda rota documenta os status que pode devolver, todos com o schema `ErrorResponseDto`.
 
@@ -417,6 +421,34 @@ Histórico de eventos:
 - Qualquer usuário autenticado lê o histórico de qualquer ordem (`GET /work-orders/:id/events`). Ordem inexistente dá 404 `NOT_FOUND`.
 - Ordem: mais recentes primeiro (`createdAt desc`), com desempate por `id` no mesmo sentido.
 - A resposta nunca traz e-mail, hash nem o `payload` bruto: o `actor` tem só `id` e `name`, e os `details` são montados por tipo (`events/event-details.mapper.ts`). Na edição da descrição, sai só o nome do campo, sem o texto. Evento com payload em formato inesperado sai com `details: null`, sem derrubar a leitura.
+
+Importação e exportação CSV:
+
+- Exportar (`GET /work-orders/export`): qualquer usuário autenticado, com os mesmos filtros e a mesma ordenação de `GET /work-orders`, sem `page` e `pageSize` (enviar um deles dá 400). No máximo `EXPORT_MAX_ROWS` linhas (padrão 10000); acima disso, 422 `EXPORT_TOO_LARGE`, pedindo mais filtros.
+- Importar (`POST /work-orders/import`): somente `SUPERVISOR`. Toda ordem importada nasce `OPEN`, criada pelo supervisor que importou, com as mesmas validações da criação normal (título 3 a 120, descrição até 2000, prioridade obrigatória, prazo não pode estar no passado).
+- Importação é tudo ou nada: uma linha inválida impede a gravação de todas.
+- Importar sempre cria ordens novas: não atualiza existentes nem detecta duplicadas (o mesmo arquivo duas vezes cria duas vezes).
+- Cada ordem importada gera os mesmos eventos de uma criação normal; o `payload` do `CREATED` leva também `source: 'csv_import'`. O histórico continua mostrando `details: null` para `CREATED`.
+
+Formato da exportação:
+
+- UTF-8 com BOM, separador `;`, quebra de linha CRLF, aspas duplas quando necessário (RFC 4180).
+- Colunas: `id;title;description;priority;status;dueDate;assigneeName;createdByName;createdAt;updatedAt`. `priority` e `status` com os rótulos em português; datas em ISO 8601 UTC; sem responsável, célula vazia. Nunca e-mail nem hash.
+- Cabeçalhos: `Content-Type: text/csv; charset=utf-8` e `Content-Disposition: attachment; filename="opsboard-ordens-AAAAMMDD-HHmm.csv"` (horário no `APP_TIMEZONE`).
+- Injeção de fórmula: célula de texto livre (título, descrição, nomes) que, depois dos espaços iniciais, comece com `=`, `+`, `-`, `@`, tab ou CR ganha um `'` na frente. O valor no banco não muda.
+
+Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true|false`, padrão `false`):
+
+- Cabeçalho obrigatório, com os nomes `title`, `description`, `priority`, `dueDate`, `assigneeEmail` (sem diferenciar maiúsculas). `title` e `priority` precisam existir; as demais podem faltar ou vir vazias. Coluna desconhecida ou repetida é erro do arquivo.
+- Separador detectado pelo cabeçalho (`;` ou `,`); BOM ignorado; CRLF e LF aceitos. Arquivo que não é UTF-8 válido é erro do arquivo, com a dica "salve como CSV UTF-8".
+- `priority`: enum (`LOW`...) ou rótulo em português, sem diferenciar maiúsculas e com `trim`. Vazio é erro.
+- `dueDate`: ISO 8601 completo (com `Z` ou offset) ou só `AAAA-MM-DD`, que vale o fim desse dia no `APP_TIMEZONE` (padrão `America/Sao_Paulo`). Prazo no passado é erro.
+- `assigneeEmail`: vazio = sem responsável; e-mail inexistente é erro da linha; comparação sem diferenciar maiúsculas.
+- Linhas totalmente vazias são ignoradas. O número da linha no relatório é o do registro no arquivo, com o cabeçalho na linha 1.
+- Limites: arquivo até 1 MB (acima, 413 `PAYLOAD_TOO_LARGE`) e até `IMPORT_MAX_ROWS` registros (padrão 500).
+- Erros do arquivo (ausente, vazio, sem cabeçalho obrigatório, coluna desconhecida ou repetida, não UTF-8, linhas demais, CSV malformado): 400 `IMPORT_FILE_INVALID`, com mensagem específica. Nunca 500.
+- `dryRun=true`: sempre 200 com `{ dryRun: true, valid, totalRows, validRows, totalErrors, errors }`; `errors` tem no máximo 100 itens `{ row, column, code, message }` (`column` pode ser nulo). Códigos de linha: `REQUIRED`, `TOO_SHORT`, `TOO_LONG`, `INVALID_ENUM`, `INVALID_DATE`, `DATE_IN_PAST`, `UNKNOWN_ASSIGNEE`. Nada é gravado.
+- `dryRun=false`: tudo válido dá 201 `{ dryRun: false, imported }`; qualquer erro de linha dá 422 `IMPORT_INVALID`, com a mesma lista em `details` (e `totalErrors`), e nada é gravado.
 
 ## Limitações conhecidas
 
