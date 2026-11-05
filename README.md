@@ -7,7 +7,8 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 > o login com JWT e dois perfis, a proteção de rotas na API e no front, a API de ordens de serviço
 > com fluxo de status e registro de eventos, e as telas de ordens: lista com busca, filtros,
 > ordenação e paginação; criar, ver, editar, mudar status, atribuir e excluir; e o painel com
-> contadores por status e ordens atrasadas. Leitura do histórico e CSV ainda não foram implementados.
+> contadores por status e ordens atrasadas; e o histórico de cada ordem como linha do tempo no
+> detalhe. Importar e exportar CSV ainda não foi implementado.
 
 ## Stack
 
@@ -96,6 +97,7 @@ o `/auth/me`.
 | `PATCH /work-orders/:id/status`   | Conforme as regras | Muda o status                                   |
 | `PATCH /work-orders/:id/assignee` | Supervisor         | Define ou remove o responsável                  |
 | `DELETE /work-orders/:id`         | Supervisor         | Exclui a ordem e seus eventos                   |
+| `GET /work-orders/:id/events`     | Autenticado        | Histórico da ordem, mais recente primeiro       |
 | `GET /dashboard/summary`          | Autenticado        | Contadores por status e ordens atrasadas        |
 | `GET /users`                      | Supervisor         | Lista usuários (id, nome e perfil) por nome     |
 
@@ -152,6 +154,33 @@ Resumo do painel:
 
 ```bash
 curl -s localhost:3000/dashboard/summary -H "Authorization: Bearer $TOKEN"
+```
+
+### Histórico
+
+Cada mudança numa ordem grava um evento na tabela `WorkOrderEvent`, na mesma transação da mudança.
+O histórico é só de leitura: nenhum endpoint edita ou apaga eventos.
+
+| Evento           | Quando                          | `details`                                                      |
+| ---------------- | ------------------------------- | -------------------------------------------------------------- |
+| `CREATED`        | Criar a ordem                   | `null` (o status inicial vai em `toStatus`)                    |
+| `STATUS_CHANGED` | Iniciar, concluir ou cancelar   | `null` (usa `fromStatus` e `toStatus`)                         |
+| `UPDATED`        | Editar título, descrição, etc.  | `{ changes: [{ field, from, to }] }`; descrição só com `field` |
+| `ASSIGNED`       | Atribuir ou tirar o responsável | `{ from: { id, name } \| null, to: { id, name } \| null }`     |
+
+- **O que não é exposto**: e-mail, hash de senha e o `payload` bruto gravado no banco. O `actor`
+  tem só `id` e `name`, e na edição da descrição sai só o nome do campo, nunca o texto.
+- **Formato**: `GET /work-orders/:id/events?page=1&pageSize=20` (`pageSize` de 1 a 100) devolve
+  `{ items, total, page, pageSize, totalPages }`, mais recente primeiro, com desempate por `id`.
+  Página além do fim devolve `items` vazio com 200; ordem inexistente dá 404; parâmetro
+  desconhecido dá 400.
+- **Registro antigo em formato inesperado** sai com `details: null`, sem derrubar a leitura.
+- **Na tela**: a seção "Histórico" do detalhe mostra a linha do tempo com 10 eventos por página,
+  com quem fez, o que fez e quando (no fuso do navegador). Depois de editar, mudar o status ou
+  atribuir, o novo evento aparece sem recarregar a página.
+
+```bash
+curl -s "localhost:3000/work-orders/<id>/events?pageSize=5" -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Formato de erro
@@ -279,7 +308,7 @@ a sessão e leva ao `/login`.
 | Rota               | O que faz                                                                                                 |
 | ------------------ | --------------------------------------------------------------------------------------------------------- |
 | `/orders/new`      | Cria uma ordem. Operador é sempre o responsável; supervisor escolhe qualquer usuário ou "Sem responsável" |
-| `/orders/:id`      | Detalhe com as ações permitidas: editar, iniciar, concluir, cancelar, atribuir e excluir                  |
+| `/orders/:id`      | Detalhe com as ações permitidas (editar, iniciar, concluir, cancelar, atribuir e excluir) e o histórico   |
 | `/orders/:id/edit` | Edita título e descrição; prioridade e prazo só para supervisor                                           |
 
 - **Cada ação aparece só para quem pode fazê-la**, pela função `getAvailableActions`
@@ -399,7 +428,10 @@ Histórico de eventos:
 - **Sem refresh token**: quando o token expira, é preciso entrar de novo.
 - **Filtro por responsável só via "Minhas ordens"**: a API aceita `assigneeId` com qualquer usuário, mas não há endpoint que liste usuários para montar o seletor.
 - **Ações da tela duplicam a política do back** (`features/work-orders/permissions.ts`): o front só decide o que mostrar, e a API continua decidindo o que vale. Se a política mudar, os dois lados e as duas matrizes de teste mudam juntos.
-- **A ordem ainda não mostra o histórico**: os eventos são gravados desde o Dia 3, mas não há endpoint nem tela para lê-los.
+- **Excluir a ordem apaga o histórico dela**: os eventos saem em cascata. Uma auditoria completa exigiria exclusão lógica (marcar a ordem como excluída em vez de apagar).
+- **Descrição alterada registra só o campo**: a API mostra que a descrição mudou, não o texto antes e depois.
+- **Histórico sem filtros nem exportação**: só a linha do tempo paginada de cada ordem, sem busca e sem feed geral de atividades.
+- **O front interpreta `details` pelo contrato gerado** (`api-types.ts`), não pelo JSON bruto do banco: um tipo de evento novo só ganha texto próprio depois de regenerar o contrato e ensinar o `describeEvent`; até lá aparece como "Alteração registrada por …".
 - **Painel sem atualização automática**: os números só mudam ao abrir a tela (depois de 30 s), pelo botão "Atualizar" ou depois de uma ação feita neste navegador. Mudanças feitas por outra pessoa só aparecem ao atualizar.
 - **Painel sem métricas por responsável, prioridade ou período**: a API entrega só contadores por status e as atrasadas, e o painel não calcula nada por conta própria.
 - **Regra de "atrasada" duplicada no front** (`features/work-orders/overdue.ts`): a lista não traz esse campo, então o selo é calculado no navegador com a mesma regra da API. A API continua sendo a fonte da verdade (é ela que filtra `overdue=true`); se a regra mudar, os dois lados e seus testes mudam juntos.
@@ -464,8 +496,9 @@ npm run seed:large
 Acrescenta 5.000 ordens com o prefixo `[volume]` no título, para testar paginação e planos de
 consulta. Precisa do seed normal antes (usa os mesmos usuários), não apaga nem altera as ordens
 dele e, ao rodar de novo, substitui só as ordens `[volume]` da execução anterior (avisando quantas).
-Os dados saem iguais a cada execução, e essas ordens não têm eventos de histórico. Não roda com
-`NODE_ENV=production`.
+Os dados saem iguais a cada execução. Cada ordem ganha um histórico coerente com o status
+(criação e mudanças de status), e a ordem `[volume] Ordem com histórico longo` tem 28 eventos,
+para paginar a linha do tempo. Não roda com `NODE_ENV=production`.
 
 ## Desenvolvimento (hot reload)
 
