@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from '../../lib/api';
 import type { components } from '../../lib/api-types';
+import { dashboardKeys } from '../dashboard/dashboard-keys';
 import type { WorkOrder, WorkOrderStatus } from './labels';
 import type { UpdateWorkOrderPayload } from './update-payload';
 import { workOrderKeys } from './use-work-orders';
@@ -15,11 +16,20 @@ export function useWorkOrder(id: string) {
 }
 
 // Sem atualização otimista: a tela espera a resposta da API. No sucesso, a lista (todas as
-// páginas e filtros) e o detalhe ficam velhos e são buscados de novo quando aparecerem.
+// páginas e filtros), o painel e o detalhe ficam velhos e são buscados de novo quando
+// aparecerem.
 function invalidateOrder(queryClient: QueryClient, id: string) {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() }),
+    invalidateCollections(queryClient),
     queryClient.invalidateQueries({ queryKey: workOrderKeys.detail(id) }),
+  ]);
+}
+
+/** O que muda com qualquer ordem: a lista e os números do painel. */
+function invalidateCollections(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
   ]);
 }
 
@@ -76,7 +86,7 @@ export function useDeleteWorkOrder(id: string) {
     onSuccess: async () => {
       // A ordem não existe mais: tira o detalhe do cache (buscar de novo daria 404).
       queryClient.removeQueries({ queryKey: workOrderKeys.detail(id) });
-      await queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      await invalidateCollections(queryClient);
     },
     onError: (error) => refetchIfStale(queryClient, id, error),
   });
