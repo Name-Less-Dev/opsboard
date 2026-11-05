@@ -1,3 +1,5 @@
 # Força LF no repositório e no checkout, independente do core.autocrlf de cada máquina.
 * text=auto eol=lf
 *.png binary
+# Exemplos de importação CSV: os bytes ficam como estão (BOM e CRLF, como o Excel salva).
+docs/examples/*.csv -text
