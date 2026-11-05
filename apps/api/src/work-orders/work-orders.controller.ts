@@ -17,6 +17,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -34,6 +36,13 @@ import { CSV_CONTENT_TYPE } from './csv/export-csv';
 import { IMPORT_MAX_BYTES, UploadErrorsInterceptor } from './csv/upload-errors.interceptor';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { ExportWorkOrdersDto } from './dto/export-work-orders.dto';
+import {
+  IMPORT_FILE_INVALID_EXAMPLE,
+  IMPORT_INVALID_EXAMPLE,
+  IMPORT_REPORT_EXAMPLE,
+  ImportDoneResponseDto,
+  ImportReportResponseDto,
+} from './dto/import-result.dto';
 import { ImportWorkOrdersQueryDto } from './dto/import-work-orders.dto';
 import { ListWorkOrdersDto } from './dto/list-work-orders.dto';
 import { WorkOrderPageResponseDto, WorkOrderResponseDto } from './dto/work-order-response.dto';
@@ -91,10 +100,21 @@ export class WorkOrdersController {
       'Mesmos filtros e ordenação de GET /work-orders, sem page e pageSize. UTF-8 com BOM, separador `;`, CRLF. Acima de EXPORT_MAX_ROWS linhas, 422 EXPORT_TOO_LARGE.',
   })
   @ApiOkResponse({
-    description: 'Arquivo CSV (Content-Disposition: attachment)',
-    content: { 'text/csv': { schema: { type: 'string' } } },
+    description:
+      'Arquivo CSV. Headers: Content-Type text/csv; charset=utf-8 e Content-Disposition: attachment; filename="opsboard-ordens-AAAAMMDD-HHmm.csv"',
+    content: {
+      'text/csv': {
+        schema: { type: 'string' },
+        example:
+          'id;title;description;priority;status;dueDate;assigneeName;createdByName;createdAt;updatedAt\r\n' +
+          'b1a2c3d4-0000-4000-8000-000000000001;Trocar filtro;;Alta;Aberta;2026-12-01T21:00:00.000Z;Ana Operadora;Carla Supervisora;2026-11-05T12:00:00.000Z;2026-11-05T12:00:00.000Z\r\n',
+      },
+    },
   })
-  @ApiErrors(400, 422)
+  @ApiErrors(
+    [400, 'VALIDATION_ERROR: filtro inválido, ou page/pageSize (a exportação não pagina)'],
+    [422, 'EXPORT_TOO_LARGE: resultado acima de EXPORT_MAX_ROWS linhas; use mais filtros'],
+  )
   async exportCsv(
     @CurrentUser() actor: PublicUser,
     @Query() query: ExportWorkOrdersDto,
@@ -117,9 +137,41 @@ export class WorkOrdersController {
   @ApiOperation({
     summary: 'Importa ordens de um CSV (somente supervisor)',
     description:
-      'Tudo ou nada. dryRun=true só valida (200 com o relatório); dryRun=false grava (201) ou devolve 422 IMPORT_INVALID sem gravar nada.',
+      'Tudo ou nada. dryRun=true só valida (200 com o relatório); dryRun=false grava (201) ou devolve 422 IMPORT_INVALID sem gravar nada. Cabeçalho: title e priority obrigatórios; description, dueDate e assigneeEmail opcionais. Separador `;` ou `,`, UTF-8 (com ou sem BOM).',
   })
-  @ApiErrors(400, 403, 413, 422)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary', description: 'Arquivo .csv de até 1 MB' },
+      },
+    },
+  })
+  @ApiOkResponse({
+    type: ImportReportResponseDto,
+    description: 'dryRun=true: relatório da validação (sempre 200, mesmo com erros)',
+    example: IMPORT_REPORT_EXAMPLE,
+  })
+  @ApiCreatedResponse({
+    type: ImportDoneResponseDto,
+    description: 'dryRun=false e arquivo todo válido: ordens criadas',
+  })
+  @ApiErrors(
+    [
+      400,
+      'IMPORT_FILE_INVALID: arquivo ausente, vazio, fora de UTF-8, cabeçalho inválido, CSV malformado ou acima de IMPORT_MAX_ROWS linhas; VALIDATION_ERROR: dryRun inválido',
+      IMPORT_FILE_INVALID_EXAMPLE,
+    ],
+    [403, 'FORBIDDEN: somente supervisor importa'],
+    [413, 'PAYLOAD_TOO_LARGE: arquivo acima de 1 MB'],
+    [
+      422,
+      'IMPORT_INVALID: alguma linha tem erro e nada foi gravado; details por linha (até 100) e totalErrors',
+      IMPORT_INVALID_EXAMPLE,
+    ],
+  )
   async importCsv(
     @CurrentUser() actor: PublicUser,
     @Query() query: ImportWorkOrdersQueryDto,

@@ -17,6 +17,13 @@ export const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
     'Outra pessoa alterou esta ordem agora há pouco. Confira os dados atualizados e tente de novo.',
   CONFLICT: 'Não foi possível salvar por conflito com outros dados.',
   TOO_MANY_REQUESTS: 'Muitas tentativas seguidas. Aguarde um minuto e tente de novo.',
+  EXPORT_TOO_LARGE:
+    'A exportação passa do limite de linhas. Use mais filtros para reduzir o resultado e tente de novo.',
+  // A tela de importação mostra a mensagem da API neste código (ela diz o que há de errado no arquivo).
+  IMPORT_FILE_INVALID: 'Não foi possível ler o arquivo. Confira o formato e tente de novo.',
+  IMPORT_INVALID:
+    'O arquivo tem linhas com erro e nenhuma ordem foi importada. Confira o relatório.',
+  PAYLOAD_TOO_LARGE: 'O arquivo passa de 1 MB. Divida em arquivos menores.',
   HTTP_ERROR: 'Não foi possível concluir a requisição.',
   INTERNAL_ERROR: 'Ocorreu um erro inesperado no servidor.',
   SERVICE_UNAVAILABLE: 'O serviço está indisponível no momento. Tente de novo em instantes.',

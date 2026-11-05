@@ -17,16 +17,16 @@ const DESCRIPTIONS = {
 
 type Status = keyof typeof DESCRIPTIONS;
 
-const errorResponse = (status: number, description: string) =>
-  ApiResponse({ status, description, type: ErrorResponseDto });
+const errorResponse = (status: number, description: string, example?: object) =>
+  ApiResponse({ status, description, type: ErrorResponseDto, ...(example ? { example } : {}) });
 
 // Documenta só os status que a rota pode devolver, todos com o mesmo schema de erro.
 // O 500 entra sempre: qualquer rota pode falhar de forma inesperada.
-export const ApiErrors = (...items: (Status | [Status, string])[]) =>
+export const ApiErrors = (...items: (Status | [Status, string] | [Status, string, object])[]) =>
   applyDecorators(
     ...items.map((item) =>
       Array.isArray(item)
-        ? errorResponse(item[0], item[1])
+        ? errorResponse(item[0], item[1], item[2])
         : errorResponse(item, DESCRIPTIONS[item]),
     ),
     errorResponse(500, 'INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId'),

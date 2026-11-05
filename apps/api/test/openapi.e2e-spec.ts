@@ -70,6 +70,36 @@ describe('Documento OpenAPI (e2e)', () => {
     expect(statuses('/work-orders/{id}/status', 'patch')).toEqual(
       ['200', '400', '401', '403', '404', '409', '500'].sort(),
     );
+    expect(statuses('/work-orders/export', 'get')).toEqual(['200', '400', '401', '422', '500']);
+    expect(statuses('/work-orders/import', 'post')).toEqual(
+      ['200', '201', '400', '401', '403', '413', '422', '500'].sort(),
+    );
+  });
+
+  it('exportação responde text/csv; importação recebe multipart com o campo file binário', () => {
+    type Operation = {
+      requestBody?: { content: Record<string, { schema: { properties: Record<string, object> } }> };
+      responses: Record<string, { content: Record<string, unknown> }>;
+    };
+    const paths = document.paths as Record<string, Record<string, Operation>>;
+    expect(Object.keys(paths['/work-orders/export'].get.responses['200'].content)).toEqual([
+      'text/csv',
+    ]);
+    const body = paths['/work-orders/import'].post.requestBody?.content['multipart/form-data'];
+    expect(body?.schema.properties.file).toEqual(
+      expect.objectContaining({ type: 'string', format: 'binary' }),
+    );
+  });
+
+  it('details do erro depende do code: por campo ou por linha da importação', () => {
+    const error = document.components?.schemas?.ErrorResponseDto as {
+      properties: { details: { oneOf: { items: { $ref: string } }[] }; totalErrors: object };
+    };
+    expect(error.properties.details.oneOf.map((item) => item.items.$ref)).toEqual([
+      '#/components/schemas/ValidationDetailDto',
+      '#/components/schemas/ImportErrorDetailDto',
+    ]);
+    expect(error.properties.totalErrors).toBeDefined();
   });
 
   it('histórico: items é união discriminada por type, com exemplo de cada tipo', () => {

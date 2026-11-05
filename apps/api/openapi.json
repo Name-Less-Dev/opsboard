@@ -482,6 +482,361 @@
         ]
       }
     },
+    "/work-orders/export": {
+      "get": {
+        "description": "Mesmos filtros e ordenação de GET /work-orders, sem page e pageSize. UTF-8 com BOM, separador `;`, CRLF. Acima de EXPORT_MAX_ROWS linhas, 422 EXPORT_TOO_LARGE.",
+        "operationId": "WorkOrdersController_exportCsv",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Um ou mais (OR), separados por vírgula ou repetindo o parâmetro",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Um ou mais (OR), separados por vírgula ou repetindo o parâmetro",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            }
+          },
+          {
+            "name": "assigneeId",
+            "required": false,
+            "in": "query",
+            "description": "UUID de um usuário ou `me` (o usuário autenticado)",
+            "schema": {
+              "example": "me",
+              "type": "string"
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "`true` filtra só atrasadas; `false` ou ausente não filtra",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "dueFrom",
+            "required": false,
+            "in": "query",
+            "description": "Prazo a partir deste instante (inclusivo); exige hora e fuso",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-11-01T00:00:00-03:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dueTo",
+            "required": false,
+            "in": "query",
+            "description": "Prazo até este instante (inclusivo); não pode ser anterior a `dueFrom`",
+            "schema": {
+              "format": "date-time",
+              "example": "2026-11-30T23:59:59-03:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Trecho do título ou da descrição, sem diferenciar maiúsculas",
+            "schema": {
+              "maxLength": 100,
+              "example": "filtro",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "dueDate",
+                "priority"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arquivo CSV. Headers: Content-Type text/csv; charset=utf-8 e Content-Disposition: attachment; filename=\"opsboard-ordens-AAAAMMDD-HHmm.csv\"",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "id;title;description;priority;status;dueDate;assigneeName;createdByName;createdAt;updatedAt\r\nb1a2c3d4-0000-4000-8000-000000000001;Trocar filtro;;Alta;Aberta;2026-12-01T21:00:00.000Z;Ana Operadora;Carla Supervisora;2026-11-05T12:00:00.000Z;2026-11-05T12:00:00.000Z\r\n"
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: filtro inválido, ou page/pageSize (a exportação não pagina)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EXPORT_TOO_LARGE: resultado acima de EXPORT_MAX_ROWS linhas; use mais filtros",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Exporta as ordens filtradas em CSV",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/work-orders/import": {
+      "post": {
+        "description": "Tudo ou nada. dryRun=true só valida (200 com o relatório); dryRun=false grava (201) ou devolve 422 IMPORT_INVALID sem gravar nada. Cabeçalho: title e priority obrigatórios; description, dueDate e assigneeEmail opcionais. Separador `;` ou `,`, UTF-8 (com ou sem BOM).",
+        "operationId": "WorkOrdersController_importCsv",
+        "parameters": [
+          {
+            "name": "dryRun",
+            "required": false,
+            "in": "query",
+            "description": "`true` só valida e devolve o relatório, sem gravar nada",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Arquivo .csv de até 1 MB"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "dryRun=true: relatório da validação (sempre 200, mesmo com erros)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportReportResponseDto"
+                },
+                "example": {
+                  "dryRun": true,
+                  "valid": false,
+                  "totalRows": 120,
+                  "validRows": 118,
+                  "totalErrors": 2,
+                  "errors": [
+                    {
+                      "row": 3,
+                      "column": "title",
+                      "code": "TOO_SHORT",
+                      "message": "O título precisa ter pelo menos 3 caracteres."
+                    },
+                    {
+                      "row": 7,
+                      "column": "priority",
+                      "code": "INVALID_ENUM",
+                      "message": "Prioridade inválida: use Baixa, Média, Alta ou Urgente."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "dryRun=false e arquivo todo válido: ordens criadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDoneResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "IMPORT_FILE_INVALID: arquivo ausente, vazio, fora de UTF-8, cabeçalho inválido, CSV malformado ou acima de IMPORT_MAX_ROWS linhas; VALIDATION_ERROR: dryRun inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 400,
+                  "code": "IMPORT_FILE_INVALID",
+                  "message": "Faltam colunas obrigatórias no cabeçalho: priority.",
+                  "path": "/work-orders/import",
+                  "timestamp": "2026-11-05T12:00:00.000Z",
+                  "requestId": "0b6d2a4e-3f1c-4d9a-8e7b-5c2f1a0d9e8b"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: somente supervisor importa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE: arquivo acima de 1 MB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "IMPORT_INVALID: alguma linha tem erro e nada foi gravado; details por linha (até 100) e totalErrors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "example": {
+                  "statusCode": 422,
+                  "code": "IMPORT_INVALID",
+                  "message": "O arquivo tem 2 erros; nenhuma ordem foi importada",
+                  "details": [
+                    {
+                      "row": 3,
+                      "column": "title",
+                      "code": "TOO_SHORT",
+                      "message": "O título precisa ter pelo menos 3 caracteres."
+                    },
+                    {
+                      "row": 7,
+                      "column": "priority",
+                      "code": "INVALID_ENUM",
+                      "message": "Prioridade inválida: use Baixa, Média, Alta ou Urgente."
+                    }
+                  ],
+                  "totalErrors": 2,
+                  "path": "/work-orders/import",
+                  "timestamp": "2026-11-05T12:00:00.000Z",
+                  "requestId": "0b6d2a4e-3f1c-4d9a-8e7b-5c2f1a0d9e8b"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Importa ordens de um CSV (somente supervisor)",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
     "/work-orders/{id}": {
       "get": {
         "operationId": "WorkOrdersController_findOne",
@@ -1221,24 +1576,6 @@
           "database"
         ]
       },
-      "ErrorCode": {
-        "type": "string",
-        "enum": [
-          "VALIDATION_ERROR",
-          "UNAUTHORIZED",
-          "FORBIDDEN",
-          "NOT_FOUND",
-          "INVALID_TRANSITION",
-          "ORDER_FINALIZED",
-          "CONCURRENT_UPDATE",
-          "CONFLICT",
-          "TOO_MANY_REQUESTS",
-          "INTERNAL_ERROR",
-          "SERVICE_UNAVAILABLE",
-          "HTTP_ERROR"
-        ],
-        "description": "Estável: é o que o cliente deve usar para decidir o que fazer"
-      },
       "ValidationDetailDto": {
         "type": "object",
         "properties": {
@@ -1262,6 +1599,83 @@
           "messages"
         ]
       },
+      "ImportRowErrorCode": {
+        "type": "string",
+        "enum": [
+          "REQUIRED",
+          "TOO_SHORT",
+          "TOO_LONG",
+          "INVALID_ENUM",
+          "INVALID_DATE",
+          "DATE_IN_PAST",
+          "UNKNOWN_ASSIGNEE"
+        ],
+        "description": "Estável: o cliente decide por ele, não pela mensagem"
+      },
+      "ImportErrorDetailDto": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "number",
+            "example": 7,
+            "description": "Linha no arquivo; o cabeçalho é a linha 1"
+          },
+          "column": {
+            "type": "string",
+            "enum": [
+              "title",
+              "description",
+              "priority",
+              "dueDate",
+              "assigneeEmail"
+            ],
+            "nullable": true,
+            "example": "priority",
+            "description": "Coluna com problema; null quando o erro é da linha inteira"
+          },
+          "code": {
+            "example": "INVALID_ENUM",
+            "description": "Estável: o cliente decide por ele, não pela mensagem",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ImportRowErrorCode"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "Prioridade inválida: use Baixa, Média, Alta ou Urgente."
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "code",
+          "message"
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "VALIDATION_ERROR",
+          "IMPORT_FILE_INVALID",
+          "UNAUTHORIZED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "INVALID_TRANSITION",
+          "ORDER_FINALIZED",
+          "CONCURRENT_UPDATE",
+          "CONFLICT",
+          "PAYLOAD_TOO_LARGE",
+          "EXPORT_TOO_LARGE",
+          "IMPORT_INVALID",
+          "TOO_MANY_REQUESTS",
+          "INTERNAL_ERROR",
+          "SERVICE_UNAVAILABLE",
+          "HTTP_ERROR"
+        ],
+        "description": "Estável: é o que o cliente deve usar para decidir o que fazer"
+      },
       "ErrorResponseDto": {
         "type": "object",
         "properties": {
@@ -1284,11 +1698,26 @@
             "description": "Legível, em português; pode mudar"
           },
           "details": {
-            "description": "Só em VALIDATION_ERROR, e sempre presente nele (pode ser vazio)",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ValidationDetailDto"
-            }
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ValidationDetailDto"
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImportErrorDetailDto"
+                }
+              }
+            ],
+            "description": "Só em VALIDATION_ERROR (por campo: `{ field, messages }`) e IMPORT_INVALID (por linha: `{ row, column, code, message }`, no máximo 100). Sempre presente nesses dois, mesmo vazio."
+          },
+          "totalErrors": {
+            "type": "number",
+            "example": 150,
+            "description": "Só em IMPORT_INVALID: total real de erros (details traz no máximo 100)"
           },
           "path": {
             "type": "string",
@@ -1594,6 +2023,72 @@
           "page",
           "pageSize",
           "totalPages"
+        ]
+      },
+      "ImportReportResponseDto": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Sempre true: nada foi gravado"
+          },
+          "valid": {
+            "type": "boolean",
+            "example": false,
+            "description": "true se nenhuma linha tem erro"
+          },
+          "totalRows": {
+            "type": "number",
+            "example": 120,
+            "description": "Linhas de dados lidas, sem contar o cabeçalho nem as linhas vazias"
+          },
+          "validRows": {
+            "type": "number",
+            "example": 118
+          },
+          "totalErrors": {
+            "type": "number",
+            "example": 2,
+            "description": "Total real de erros, mesmo acima de 100"
+          },
+          "errors": {
+            "description": "No máximo 100, em ordem de linha e coluna",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportErrorDetailDto"
+            }
+          }
+        },
+        "required": [
+          "dryRun",
+          "valid",
+          "totalRows",
+          "validRows",
+          "totalErrors",
+          "errors"
+        ]
+      },
+      "ImportDoneResponseDto": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "imported": {
+            "type": "number",
+            "example": 12,
+            "description": "Ordens criadas"
+          }
+        },
+        "required": [
+          "dryRun",
+          "imported"
         ]
       },
       "UpdateWorkOrderDto": {
