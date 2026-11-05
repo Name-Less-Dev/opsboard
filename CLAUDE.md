@@ -37,8 +37,8 @@ em entrevista tudo o que estiver aqui.
 ## Estrutura
 
 ```
-apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui), events (leitura do histórico), dashboard, clock
-apps/web   # React: pages, components, features (auth, work-orders, dashboard), lib (cliente HTTP, erros, query, tema), test (MSW)
+apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; csv/ com exportação e importação), events (leitura do histórico), dashboard, clock
+apps/web   # React: pages, components, features (auth, work-orders com history/ e csv/, dashboard), lib (cliente HTTP, erros, query, tema, download), test (MSW)
 ```
 
 Monorepo com npm workspaces (`apps/*`).
@@ -143,7 +143,7 @@ Formato da exportação:
 
 Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true|false`, padrão `false`):
 
-- Cabeçalho obrigatório, com os nomes `title`, `description`, `priority`, `dueDate`, `assigneeEmail` (sem diferenciar maiúsculas). `title` e `priority` precisam existir; as demais podem faltar ou vir vazias. Coluna desconhecida ou repetida é erro do arquivo.
+- Cabeçalho obrigatório, com os nomes `title`, `description`, `priority`, `dueDate`, `assigneeEmail` (sem diferenciar maiúsculas). `title` e `priority` precisam existir; as demais podem faltar ou vir vazias. Exceção: o prazo é obrigatório na criação (e `NOT NULL` no banco), então prazo vazio ou coluna `dueDate` ausente dá `REQUIRED` em cada linha. Coluna desconhecida ou repetida é erro do arquivo.
 - Separador detectado pelo cabeçalho (`;` ou `,`); BOM ignorado; CRLF e LF aceitos. Arquivo que não é UTF-8 válido é erro do arquivo, com a dica "salve como CSV UTF-8".
 - `priority`: enum (`LOW`...) ou rótulo em português, sem diferenciar maiúsculas e com `trim`. Vazio é erro.
 - `dueDate`: ISO 8601 completo (com `Z` ou offset) ou só `AAAA-MM-DD`, que vale o fim desse dia no `APP_TIMEZONE` (padrão `America/Sao_Paulo`). Prazo no passado é erro.

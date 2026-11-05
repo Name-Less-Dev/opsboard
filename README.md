@@ -7,8 +7,8 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 > o login com JWT e dois perfis, a proteção de rotas na API e no front, a API de ordens de serviço
 > com fluxo de status e registro de eventos, e as telas de ordens: lista com busca, filtros,
 > ordenação e paginação; criar, ver, editar, mudar status, atribuir e excluir; e o painel com
-> contadores por status e ordens atrasadas; e o histórico de cada ordem como linha do tempo no
-> detalhe. Importar e exportar CSV ainda não foi implementado.
+> contadores por status e ordens atrasadas; o histórico de cada ordem como linha do tempo no
+> detalhe; e a exportação da lista filtrada e a importação de ordens em lote por CSV.
 
 ## Stack
 
@@ -186,6 +186,103 @@ O histórico é só de leitura: nenhum endpoint edita ou apaga eventos.
 curl -s "localhost:3000/work-orders/<id>/events?pageSize=5" -H "Authorization: Bearer $TOKEN"
 ```
 
+## CSV
+
+Exportar a lista filtrada e importar ordens em lote. As regras completas estão em
+[Regras de negócio](#regras-de-negócio); os arquivos de exemplo ficam em `docs/examples/`.
+
+### Exportação (`GET /work-orders/export`)
+
+Qualquer usuário autenticado. Recebe os mesmos filtros e a mesma ordenação de `GET /work-orders`,
+sem `page` e `pageSize` (que dão 400). Acima de `EXPORT_MAX_ROWS` linhas (padrão 10.000), a
+resposta é 422 `EXPORT_TOO_LARGE`. Na tela, o botão "Exportar CSV" da lista usa os filtros da URL.
+
+O arquivo sai em UTF-8 com BOM, separador `;`, CRLF e aspas só quando necessário. O nome é
+`opsboard-ordens-AAAAMMDD-HHmm.csv`, no horário do `APP_TIMEZONE`.
+
+| Coluna          | Conteúdo                                           |
+| --------------- | -------------------------------------------------- |
+| `id`            | UUID da ordem                                      |
+| `title`         | Título (texto livre, neutralizado contra fórmulas) |
+| `description`   | Descrição; vazia se não houver                     |
+| `priority`      | Baixa, Média, Alta ou Urgente                      |
+| `status`        | Aberta, Em andamento, Concluída ou Cancelada       |
+| `dueDate`       | Prazo em ISO 8601 UTC                              |
+| `assigneeName`  | Nome do responsável; vazio se não houver           |
+| `createdByName` | Nome de quem criou                                 |
+| `createdAt`     | Criação em ISO 8601 UTC                            |
+| `updatedAt`     | Última alteração em ISO 8601 UTC                   |
+
+Nenhuma coluna traz e-mail ou hash. Texto livre que começa com `=`, `+`, `-`, `@`, tab ou CR (depois
+dos espaços iniciais) ganha um `'` na frente, para a planilha não executar uma fórmula. O valor no
+banco não muda.
+
+```bash
+curl -s -OJ "localhost:3000/work-orders/export?status=OPEN,IN_PROGRESS&priority=URGENT" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Importação (`POST /work-orders/import`)
+
+Somente supervisor. O envio é `multipart/form-data`, com o arquivo no campo `file`, até 1 MB e até
+`IMPORT_MAX_ROWS` ordens (padrão 500). Funciona em duas etapas:
+
+1. `?dryRun=true` só valida e devolve o relatório: sempre 200, sem gravar nada.
+2. `?dryRun=false` (o padrão) grava e devolve 201 `{ dryRun: false, imported }`. Se alguma linha
+   tiver erro, nada é gravado e a resposta é 422 `IMPORT_INVALID`, com os mesmos erros em
+   `details` e o total em `totalErrors`.
+
+| Coluna          | Obrigatória | Formato                                                                     |
+| --------------- | ----------- | --------------------------------------------------------------------------- |
+| `title`         | Sim         | 3 a 120 caracteres                                                          |
+| `description`   | Não         | Até 2.000 caracteres                                                        |
+| `priority`      | Sim         | `LOW`, `MEDIUM`, `HIGH`, `URGENT` ou Baixa, Média, Alta, Urgente            |
+| `dueDate`       | Sim\*       | `AAAA-MM-DD` (fim do dia no `APP_TIMEZONE`) ou ISO 8601 com fuso; no futuro |
+| `assigneeEmail` | Não         | E-mail de um usuário existente; vazio deixa sem responsável                 |
+
+\* A coluna pode faltar no cabeçalho, mas então toda linha acusa `REQUIRED` no prazo, porque a
+criação exige prazo.
+
+Os nomes das colunas não diferenciam maiúsculas, e o separador (`;` ou `,`) é detectado pelo
+cabeçalho. O BOM é ignorado, e CRLF e LF são aceitos. Linhas totalmente vazias são ignoradas, mas
+contam na numeração: o cabeçalho é a linha 1. Os códigos de erro por linha são `REQUIRED`,
+`TOO_SHORT`, `TOO_LONG`, `INVALID_ENUM`, `INVALID_DATE`, `DATE_IN_PAST` e `UNKNOWN_ASSIGNEE`.
+Problema no próprio arquivo dá 400 `IMPORT_FILE_INVALID`, com o motivo na mensagem:
+
+- vazio ou só com o cabeçalho;
+- coluna obrigatória faltando, desconhecida ou repetida;
+- fora de UTF-8;
+- CSV malformado;
+- linhas demais;
+- campo `file` ausente.
+
+```bash
+# Validar (nada é gravado)
+curl -s "localhost:3000/work-orders/import?dryRun=true" -H "Authorization: Bearer $TOKEN" \
+  -F "file=@docs/examples/ordens-com-erros.csv"
+
+# Importar de verdade
+curl -s "localhost:3000/work-orders/import?dryRun=false" -H "Authorization: Bearer $TOKEN" \
+  -F "file=@docs/examples/ordens-exemplo.csv"
+```
+
+Na tela (`/orders/import`, botão "Importar CSV" da lista, só para supervisor):
+
+1. Baixar o modelo, se precisar, e escolher o arquivo.
+2. "Validar arquivo" mostra o resumo ("120 linhas, 118 válidas, 2 com erro") e a tabela de erros
+   por linha.
+3. "Importar N ordens" só é liberado depois de uma validação sem erros do mesmo arquivo.
+
+Depois de importar, a tela volta para a lista com "N ordens importadas.", e a lista e o painel já
+aparecem atualizados. Cada ordem importada tem o evento de criação no histórico.
+
+### Salvar em UTF-8 no Excel
+
+Em **Arquivo → Salvar como**, escolha o tipo **CSV UTF-8 (delimitado por vírgulas) (\*.csv)**. O
+tipo "CSV (separado por vírgulas)" comum grava em Windows-1252, e a importação recusa o arquivo
+com a dica "salve como CSV UTF-8". No LibreOffice, marque "Editar configurações do filtro" ao
+salvar e escolha o conjunto de caracteres Unicode (UTF-8).
+
 ## Formato de erro
 
 Toda resposta de erro, de qualquer rota, tem este formato:
@@ -279,9 +376,10 @@ features/auth/         # sessão: AuthProvider e contexto
 features/dashboard/    # painel: hook e chave de cache, cards, barra de distribuição, lista de
                        # atrasadas, links para a lista e cálculo de "há N dias"
 features/work-orders/  # lista de ordens: parâmetros da URL, hook de dados, filtros, tabela/cartões,
-                       # rótulos em português e a regra de "atrasada"
-lib/                   # cliente HTTP, mensagens de erro, TanStack Query, tema, formatação de datas,
-                       # tipos gerados da API (api-types.ts)
+                       # rótulos em português e a regra de "atrasada"; history/ (linha do tempo)
+                       # e csv/ (exportação, modelo, relatório e hooks da importação)
+lib/                   # cliente HTTP (JSON, download e upload), mensagens de erro, TanStack Query,
+                       # tema, datas, download de Blob e tipos gerados da API (api-types.ts)
 pages/                 # telas ligadas às rotas
 test/                  # setup do Vitest e API falsa com MSW
 ```
@@ -442,7 +540,7 @@ Formato da exportação:
 
 Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true|false`, padrão `false`):
 
-- Cabeçalho obrigatório, com os nomes `title`, `description`, `priority`, `dueDate`, `assigneeEmail` (sem diferenciar maiúsculas). `title` e `priority` precisam existir; as demais podem faltar ou vir vazias. Coluna desconhecida ou repetida é erro do arquivo.
+- Cabeçalho obrigatório, com os nomes `title`, `description`, `priority`, `dueDate`, `assigneeEmail` (sem diferenciar maiúsculas). `title` e `priority` precisam existir; as demais podem faltar ou vir vazias. Exceção: o prazo é obrigatório na criação (e `NOT NULL` no banco), então prazo vazio ou coluna `dueDate` ausente dá `REQUIRED` em cada linha. Coluna desconhecida ou repetida é erro do arquivo.
 - Separador detectado pelo cabeçalho (`;` ou `,`); BOM ignorado; CRLF e LF aceitos. Arquivo que não é UTF-8 válido é erro do arquivo, com a dica "salve como CSV UTF-8".
 - `priority`: enum (`LOW`...) ou rótulo em português, sem diferenciar maiúsculas e com `trim`. Vazio é erro.
 - `dueDate`: ISO 8601 completo (com `Z` ou offset) ou só `AAAA-MM-DD`, que vale o fim desse dia no `APP_TIMEZONE` (padrão `America/Sao_Paulo`). Prazo no passado é erro.
@@ -470,6 +568,14 @@ Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true
 - **Painel sem atualização automática**: os números só mudam ao abrir a tela (depois de 30 s), pelo botão "Atualizar" ou depois de uma ação feita neste navegador. Mudanças feitas por outra pessoa só aparecem ao atualizar.
 - **Painel sem métricas por responsável, prioridade ou período**: a API entrega só contadores por status e as atrasadas, e o painel não calcula nada por conta própria.
 - **Regra de "atrasada" duplicada no front** (`features/work-orders/overdue.ts`): a lista não traz esse campo, então o selo é calculado no navegador com a mesma regra da API. A API continua sendo a fonte da verdade (é ela que filtra `overdue=true`); se a regra mudar, os dois lados e seus testes mudam juntos.
+
+- **Importação sempre cria ordens novas**: não atualiza ordens existentes e não detecta duplicadas. Importar o mesmo arquivo duas vezes cria tudo duas vezes.
+- **Sem atualização em lote por CSV**: mudar status, responsável ou outros campos de várias ordens continua sendo uma a uma.
+- **Importação síncrona de até 500 linhas**: o arquivo é validado e gravado na própria requisição, numa transação. Volumes maiores exigiriam uma fila e processamento em segundo plano, fora do escopo.
+- **Exportação limitada a 10.000 linhas** (`EXPORT_MAX_ROWS`): acima disso é preciso filtrar mais. O arquivo é montado em memória, sem streaming.
+- **A exportação não serve de entrada para a importação**: ela traz nomes, não e-mails, e tem colunas (`id`, `status`, datas) que a importação não aceita.
+- **Só supervisor importa**: o operador não vê o botão, a tela mostra acesso negado e a API responde 403.
+- **CORS sem `Content-Disposition` exposto**: com o front na mesma origem não faz diferença. Um cliente em outra origem liberada em `CORS_ORIGINS` não leria o nome do arquivo e usaria o nome padrão.
 
 ## Testes
 
