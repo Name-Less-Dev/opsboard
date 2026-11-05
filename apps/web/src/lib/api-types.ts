@@ -155,6 +155,26 @@ export interface paths {
         patch: operations["WorkOrdersController_assign"];
         trace?: never;
     };
+    "/work-orders/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Histórico de eventos da ordem, mais recente primeiro
+         * @description Paginado. `details` depende do `type`; e-mail, hash e o payload bruto nunca saem, e na edição da descrição sai só o nome do campo.
+         */
+        get: operations["EventsController_findPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/summary": {
         parameters: {
             query?: never;
@@ -360,6 +380,230 @@ export interface components {
              * @description null remove o responsável
              */
             assigneeId: string | null;
+        };
+        EventActorDto: {
+            /**
+             * Format: uuid
+             * @example 9cbbf785-9a72-4703-b484-0afd39d65703
+             */
+            id: string;
+            /** @example Carla Supervisora */
+            name: string;
+        };
+        CreatedEventDto: {
+            /**
+             * Format: uuid
+             * @example 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+             */
+            id: string;
+            /** @description Quem fez a ação (só id e nome) */
+            actor: components["schemas"]["EventActorDto"];
+            /**
+             * @description Só em STATUS_CHANGED
+             * @example null
+             */
+            fromStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * @description Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)
+             * @example null
+             */
+            toStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-05T14:30:00.000Z
+             */
+            createdAt: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CREATED";
+            /**
+             * @description Sempre null
+             * @example null
+             * @enum {number|null}
+             */
+            details: null;
+        };
+        StatusChangedEventDto: {
+            /**
+             * Format: uuid
+             * @example 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+             */
+            id: string;
+            /** @description Quem fez a ação (só id e nome) */
+            actor: components["schemas"]["EventActorDto"];
+            /**
+             * @description Só em STATUS_CHANGED
+             * @example null
+             */
+            fromStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * @description Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)
+             * @example null
+             */
+            toStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-05T14:30:00.000Z
+             */
+            createdAt: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "STATUS_CHANGED";
+            /**
+             * @description Sempre null: o status vai em fromStatus/toStatus
+             * @example null
+             * @enum {number|null}
+             */
+            details: null;
+        };
+        UpdatedDetailsDto: {
+            /** @description Na ordem título, descrição, prioridade, prazo */
+            changes: (components["schemas"]["TitleChangeDto"] | components["schemas"]["DescriptionChangeDto"] | components["schemas"]["PriorityChangeDto"] | components["schemas"]["DueDateChangeDto"])[];
+        };
+        UpdatedEventDto: {
+            /**
+             * Format: uuid
+             * @example 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+             */
+            id: string;
+            /** @description Quem fez a ação (só id e nome) */
+            actor: components["schemas"]["EventActorDto"];
+            /**
+             * @description Só em STATUS_CHANGED
+             * @example null
+             */
+            fromStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * @description Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)
+             * @example null
+             */
+            toStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-05T14:30:00.000Z
+             */
+            createdAt: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "UPDATED";
+            /** @description null se o registro antigo estiver em formato inesperado */
+            details: components["schemas"]["UpdatedDetailsDto"] | null;
+        };
+        EventUserRefDto: {
+            /**
+             * Format: uuid
+             * @example 1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b
+             */
+            id: string;
+            /**
+             * @description null se o usuário não existe mais
+             * @example Ana Operadora
+             */
+            name: string | null;
+        };
+        AssignedDetailsDto: {
+            /** @description null: estava sem responsável */
+            from: components["schemas"]["EventUserRefDto"] | null;
+            /** @description null: responsável removido */
+            to: components["schemas"]["EventUserRefDto"] | null;
+        };
+        AssignedEventDto: {
+            /**
+             * Format: uuid
+             * @example 5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b
+             */
+            id: string;
+            /** @description Quem fez a ação (só id e nome) */
+            actor: components["schemas"]["EventActorDto"];
+            /**
+             * @description Só em STATUS_CHANGED
+             * @example null
+             */
+            fromStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * @description Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)
+             * @example null
+             */
+            toStatus: components["schemas"]["WorkOrderStatus"] | null;
+            /**
+             * Format: date-time
+             * @example 2026-11-05T14:30:00.000Z
+             */
+            createdAt: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ASSIGNED";
+            /** @description null se o registro antigo estiver em formato inesperado */
+            details: components["schemas"]["AssignedDetailsDto"] | null;
+        };
+        TitleChangeDto: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "title";
+            /** @example Trocar filtro */
+            from: string;
+            /** @example Trocar filtro do ar */
+            to: string;
+        };
+        DescriptionChangeDto: {
+            /**
+             * @description Só o nome do campo: o texto da descrição não é exposto (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            field: "description";
+        };
+        PriorityChangeDto: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "priority";
+            /** @example MEDIUM */
+            from: components["schemas"]["WorkOrderPriority"];
+            /** @example URGENT */
+            to: components["schemas"]["WorkOrderPriority"];
+        };
+        DueDateChangeDto: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "dueDate";
+            /**
+             * Format: date-time
+             * @example 2026-11-10T02:59:59.999Z
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @example 2026-11-12T02:59:59.999Z
+             */
+            to: string;
+        };
+        WorkOrderEventPageDto: {
+            /** @description Mais recente primeiro; empate no mesmo instante desfeito pelo id */
+            items: (components["schemas"]["CreatedEventDto"] | components["schemas"]["StatusChangedEventDto"] | components["schemas"]["UpdatedEventDto"] | components["schemas"]["AssignedEventDto"])[];
+            /** @example 27 */
+            total: number;
+            /** @example 1 */
+            page: number;
+            /** @example 20 */
+            pageSize: number;
+            /**
+             * @description Arredondado para cima; 0 quando não há eventos
+             * @example 2
+             */
+            totalPages: number;
         };
         StatusCountsDto: {
             /** @example 5 */
@@ -1044,6 +1288,146 @@ export interface operations {
             };
             /** @description INVALID_TRANSITION, ORDER_FINALIZED ou CONCURRENT_UPDATE */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EventsController_findPage: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "items": [
+                     *         {
+                     *           "id": "b1a2c3d4-0000-4000-8000-000000000004",
+                     *           "type": "STATUS_CHANGED",
+                     *           "actor": {
+                     *             "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                     *             "name": "Ana Operadora"
+                     *           },
+                     *           "fromStatus": "OPEN",
+                     *           "toStatus": "IN_PROGRESS",
+                     *           "details": null,
+                     *           "createdAt": "2026-11-05T14:30:00.000Z"
+                     *         },
+                     *         {
+                     *           "id": "b1a2c3d4-0000-4000-8000-000000000003",
+                     *           "type": "UPDATED",
+                     *           "actor": {
+                     *             "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                     *             "name": "Carla Supervisora"
+                     *           },
+                     *           "fromStatus": null,
+                     *           "toStatus": null,
+                     *           "details": {
+                     *             "changes": [
+                     *               {
+                     *                 "field": "title",
+                     *                 "from": "Trocar filtro",
+                     *                 "to": "Trocar filtro do ar"
+                     *               },
+                     *               {
+                     *                 "field": "description"
+                     *               },
+                     *               {
+                     *                 "field": "priority",
+                     *                 "from": "MEDIUM",
+                     *                 "to": "URGENT"
+                     *               }
+                     *             ]
+                     *           },
+                     *           "createdAt": "2026-11-05T13:10:00.000Z"
+                     *         },
+                     *         {
+                     *           "id": "b1a2c3d4-0000-4000-8000-000000000002",
+                     *           "type": "ASSIGNED",
+                     *           "actor": {
+                     *             "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                     *             "name": "Carla Supervisora"
+                     *           },
+                     *           "fromStatus": null,
+                     *           "toStatus": null,
+                     *           "details": {
+                     *             "from": null,
+                     *             "to": {
+                     *               "id": "1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b",
+                     *               "name": "Ana Operadora"
+                     *             }
+                     *           },
+                     *           "createdAt": "2026-11-05T12:05:00.000Z"
+                     *         },
+                     *         {
+                     *           "id": "b1a2c3d4-0000-4000-8000-000000000001",
+                     *           "type": "CREATED",
+                     *           "actor": {
+                     *             "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                     *             "name": "Carla Supervisora"
+                     *           },
+                     *           "fromStatus": null,
+                     *           "toStatus": "OPEN",
+                     *           "details": null,
+                     *           "createdAt": "2026-11-05T12:00:00.000Z"
+                     *         }
+                     *       ],
+                     *       "total": 4,
+                     *       "page": 1,
+                     *       "pageSize": 20,
+                     *       "totalPages": 1
+                     *     }
+                     */
+                    "application/json": components["schemas"]["WorkOrderEventPageDto"];
+                };
+            };
+            /** @description VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description UNAUTHORIZED: token ausente, inválido ou expirado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND: ordem de serviço não encontrada */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

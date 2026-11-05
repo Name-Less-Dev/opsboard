@@ -60,8 +60,44 @@ describe('Documento OpenAPI (e2e)', () => {
     expect(statuses('/auth/login', 'post')).toEqual(['200', '400', '401', '429', '500']);
     expect(statuses('/health', 'get')).toEqual(['200', '500', '503']);
     expect(statuses('/users', 'get')).toEqual(['200', '401', '403', '500']);
+    expect(statuses('/work-orders/{id}/events', 'get')).toEqual([
+      '200',
+      '400',
+      '401',
+      '404',
+      '500',
+    ]);
     expect(statuses('/work-orders/{id}/status', 'patch')).toEqual(
       ['200', '400', '401', '403', '404', '409', '500'].sort(),
     );
+  });
+
+  it('histórico: items é união discriminada por type, com exemplo de cada tipo', () => {
+    const operation = (
+      document.paths['/work-orders/{id}/events'] as Record<
+        string,
+        { responses: Record<string, { content: Record<string, { example?: unknown }> }> }
+      >
+    ).get;
+    const page = document.components?.schemas?.WorkOrderEventPageDto as {
+      properties: { items: { items: { oneOf: { $ref: string }[]; discriminator: object } } };
+    };
+    expect(page.properties.items.items.discriminator).toEqual(
+      expect.objectContaining({ propertyName: 'type' }),
+    );
+    expect(page.properties.items.items.oneOf.map((item) => item.$ref).sort()).toEqual(
+      ['AssignedEventDto', 'CreatedEventDto', 'StatusChangedEventDto', 'UpdatedEventDto']
+        .map((name) => `#/components/schemas/${name}`)
+        .sort(),
+    );
+    const example = operation.responses['200'].content['application/json'].example as {
+      items: { type: string }[];
+    };
+    expect(example.items.map((item) => item.type).sort()).toEqual([
+      'ASSIGNED',
+      'CREATED',
+      'STATUS_CHANGED',
+      'UPDATED',
+    ]);
   });
 });

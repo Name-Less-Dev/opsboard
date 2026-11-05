@@ -958,6 +958,183 @@
         ]
       }
     },
+    "/work-orders/{id}/events": {
+      "get": {
+        "description": "Paginado. `details` depende do `type`; e-mail, hash e o payload bruto nunca saem, e na edição da descrição sai só o nome do campo.",
+        "operationId": "EventsController_findPage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderEventPageDto"
+                },
+                "example": {
+                  "items": [
+                    {
+                      "id": "b1a2c3d4-0000-4000-8000-000000000004",
+                      "type": "STATUS_CHANGED",
+                      "actor": {
+                        "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                        "name": "Ana Operadora"
+                      },
+                      "fromStatus": "OPEN",
+                      "toStatus": "IN_PROGRESS",
+                      "details": null,
+                      "createdAt": "2026-11-05T14:30:00.000Z"
+                    },
+                    {
+                      "id": "b1a2c3d4-0000-4000-8000-000000000003",
+                      "type": "UPDATED",
+                      "actor": {
+                        "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                        "name": "Carla Supervisora"
+                      },
+                      "fromStatus": null,
+                      "toStatus": null,
+                      "details": {
+                        "changes": [
+                          {
+                            "field": "title",
+                            "from": "Trocar filtro",
+                            "to": "Trocar filtro do ar"
+                          },
+                          {
+                            "field": "description"
+                          },
+                          {
+                            "field": "priority",
+                            "from": "MEDIUM",
+                            "to": "URGENT"
+                          }
+                        ]
+                      },
+                      "createdAt": "2026-11-05T13:10:00.000Z"
+                    },
+                    {
+                      "id": "b1a2c3d4-0000-4000-8000-000000000002",
+                      "type": "ASSIGNED",
+                      "actor": {
+                        "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                        "name": "Carla Supervisora"
+                      },
+                      "fromStatus": null,
+                      "toStatus": null,
+                      "details": {
+                        "from": null,
+                        "to": {
+                          "id": "1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b",
+                          "name": "Ana Operadora"
+                        }
+                      },
+                      "createdAt": "2026-11-05T12:05:00.000Z"
+                    },
+                    {
+                      "id": "b1a2c3d4-0000-4000-8000-000000000001",
+                      "type": "CREATED",
+                      "actor": {
+                        "id": "9cbbf785-9a72-4703-b484-0afd39d65703",
+                        "name": "Carla Supervisora"
+                      },
+                      "fromStatus": null,
+                      "toStatus": "OPEN",
+                      "details": null,
+                      "createdAt": "2026-11-05T12:00:00.000Z"
+                    }
+                  ],
+                  "total": 4,
+                  "page": 1,
+                  "pageSize": 20,
+                  "totalPages": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: payload, query ou parâmetro inválido (ver `details`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHORIZED: token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: ordem de serviço não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR: erro inesperado; o detalhe fica no log com o requestId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Histórico de eventos da ordem, mais recente primeiro",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
     "/dashboard/summary": {
       "get": {
         "operationId": "DashboardController_getSummary",
@@ -1476,6 +1653,535 @@
         },
         "required": [
           "assigneeId"
+        ]
+      },
+      "EventActorDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "9cbbf785-9a72-4703-b484-0afd39d65703"
+          },
+          "name": {
+            "type": "string",
+            "example": "Carla Supervisora"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "CreatedEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b"
+          },
+          "actor": {
+            "description": "Quem fez a ação (só id e nome)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventActorDto"
+              }
+            ]
+          },
+          "fromStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Só em STATUS_CHANGED",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "toStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-11-05T14:30:00.000Z"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CREATED"
+            ]
+          },
+          "details": {
+            "type": "number",
+            "nullable": true,
+            "enum": [
+              null
+            ],
+            "example": null,
+            "description": "Sempre null"
+          }
+        },
+        "required": [
+          "id",
+          "actor",
+          "fromStatus",
+          "toStatus",
+          "createdAt",
+          "type",
+          "details"
+        ]
+      },
+      "StatusChangedEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b"
+          },
+          "actor": {
+            "description": "Quem fez a ação (só id e nome)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventActorDto"
+              }
+            ]
+          },
+          "fromStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Só em STATUS_CHANGED",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "toStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-11-05T14:30:00.000Z"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "STATUS_CHANGED"
+            ]
+          },
+          "details": {
+            "type": "number",
+            "nullable": true,
+            "enum": [
+              null
+            ],
+            "example": null,
+            "description": "Sempre null: o status vai em fromStatus/toStatus"
+          }
+        },
+        "required": [
+          "id",
+          "actor",
+          "fromStatus",
+          "toStatus",
+          "createdAt",
+          "type",
+          "details"
+        ]
+      },
+      "UpdatedDetailsDto": {
+        "type": "object",
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TitleChangeDto"
+                },
+                {
+                  "$ref": "#/components/schemas/DescriptionChangeDto"
+                },
+                {
+                  "$ref": "#/components/schemas/PriorityChangeDto"
+                },
+                {
+                  "$ref": "#/components/schemas/DueDateChangeDto"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "field",
+                "mapping": {
+                  "title": "#/components/schemas/TitleChangeDto",
+                  "description": "#/components/schemas/DescriptionChangeDto",
+                  "priority": "#/components/schemas/PriorityChangeDto",
+                  "dueDate": "#/components/schemas/DueDateChangeDto"
+                }
+              }
+            },
+            "description": "Na ordem título, descrição, prioridade, prazo"
+          }
+        },
+        "required": [
+          "changes"
+        ]
+      },
+      "UpdatedEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b"
+          },
+          "actor": {
+            "description": "Quem fez a ação (só id e nome)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventActorDto"
+              }
+            ]
+          },
+          "fromStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Só em STATUS_CHANGED",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "toStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-11-05T14:30:00.000Z"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "UPDATED"
+            ]
+          },
+          "details": {
+            "nullable": true,
+            "description": "null se o registro antigo estiver em formato inesperado",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpdatedDetailsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "actor",
+          "fromStatus",
+          "toStatus",
+          "createdAt",
+          "type",
+          "details"
+        ]
+      },
+      "EventUserRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Ana Operadora",
+            "description": "null se o usuário não existe mais"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "AssignedDetailsDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "nullable": true,
+            "description": "null: estava sem responsável",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventUserRefDto"
+              }
+            ]
+          },
+          "to": {
+            "nullable": true,
+            "description": "null: responsável removido",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventUserRefDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "AssignedEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b"
+          },
+          "actor": {
+            "description": "Quem fez a ação (só id e nome)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventActorDto"
+              }
+            ]
+          },
+          "fromStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Só em STATUS_CHANGED",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "toStatus": {
+            "nullable": true,
+            "example": null,
+            "description": "Em STATUS_CHANGED, o novo status; em CREATED, o status inicial (OPEN)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderStatus"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-11-05T14:30:00.000Z"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ASSIGNED"
+            ]
+          },
+          "details": {
+            "nullable": true,
+            "description": "null se o registro antigo estiver em formato inesperado",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedDetailsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "actor",
+          "fromStatus",
+          "toStatus",
+          "createdAt",
+          "type",
+          "details"
+        ]
+      },
+      "TitleChangeDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "title"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "example": "Trocar filtro"
+          },
+          "to": {
+            "type": "string",
+            "example": "Trocar filtro do ar"
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to"
+        ]
+      },
+      "DescriptionChangeDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "description"
+            ],
+            "description": "Só o nome do campo: o texto da descrição não é exposto"
+          }
+        },
+        "required": [
+          "field"
+        ]
+      },
+      "PriorityChangeDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "priority"
+            ]
+          },
+          "from": {
+            "example": "MEDIUM",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            ]
+          },
+          "to": {
+            "example": "URGENT",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkOrderPriority"
+              }
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to"
+        ]
+      },
+      "DueDateChangeDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "dueDate"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-10T02:59:59.999Z"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T02:59:59.999Z"
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to"
+        ]
+      },
+      "WorkOrderEventPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CreatedEventDto"
+                },
+                {
+                  "$ref": "#/components/schemas/StatusChangedEventDto"
+                },
+                {
+                  "$ref": "#/components/schemas/UpdatedEventDto"
+                },
+                {
+                  "$ref": "#/components/schemas/AssignedEventDto"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CREATED": "#/components/schemas/CreatedEventDto",
+                  "STATUS_CHANGED": "#/components/schemas/StatusChangedEventDto",
+                  "UPDATED": "#/components/schemas/UpdatedEventDto",
+                  "ASSIGNED": "#/components/schemas/AssignedEventDto"
+                }
+              }
+            },
+            "description": "Mais recente primeiro; empate no mesmo instante desfeito pelo id"
+          },
+          "total": {
+            "type": "number",
+            "example": 27
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "number",
+            "example": 20
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 2,
+            "description": "Arredondado para cima; 0 quando não há eventos"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "totalPages"
         ]
       },
       "StatusCountsDto": {
