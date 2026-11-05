@@ -38,7 +38,7 @@ em entrevista tudo o que estiver aqui.
 
 ```
 apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; leitura do histórico ainda não existe), dashboard, clock
-apps/web   # React: pages, components, features (auth, work-orders), lib (cliente HTTP, erros, query, tema), test (MSW)
+apps/web   # React: pages, components, features (auth, work-orders, dashboard), lib (cliente HTTP, erros, query, tema), test (MSW)
 ```
 
 Monorepo com npm workspaces (`apps/*`).
@@ -134,6 +134,11 @@ Listagem e painel:
 - **Ações por `getAvailableActions(user, order)`** (`features/work-orders/permissions.ts`): espelho da política do back (`work-order.policy.ts`), que continua sendo a fonte da verdade. Os testes copiam a matriz do back.
 - **Mutações sem atualização otimista**: a tela espera a resposta, desabilita o botão durante o envio e, no sucesso, invalida a lista e o detalhe. Em 409 mostra a mensagem do `code` e busca o detalhe de novo.
 - **Confirmação de ações destrutivas** (cancelar e excluir) com o `<dialog>` nativo, com o foco devolvido ao botão de origem. Feedback de sucesso numa região `role="status"`, sem biblioteca de toast.
+- **Rota inicial**: `/` redireciona para `/dashboard`. A navegação tem "Painel" e "Ordens", com o item ativo marcado por `aria-current="page"`.
+- **Links do painel para a lista** são montados com `serializeListParams` a partir de `ListParams` (nunca string concatenada); um teste passa cada link por `parseListParams` e confere o filtro.
+- **Relógio do painel**: "há N dias" e "Atualizado às HH:mm" usam o `generatedAt` da resposta como "agora", não o relógio do navegador.
+- **Chaves de cache centralizadas**: a do painel fica em `features/dashboard/dashboard-keys.ts`; as mutações de ordem (criar, editar, status, atribuir, excluir) invalidam lista, detalhe e painel.
+- **Painel sem atualização automática**: sem polling, WebSocket ou `refetchOnWindowFocus`; `staleTime` de 30 s e botão "Atualizar".
 
 | Enum                      | Rótulo                |
 | ------------------------- | --------------------- |
