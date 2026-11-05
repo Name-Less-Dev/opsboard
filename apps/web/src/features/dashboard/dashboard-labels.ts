@@ -17,5 +17,4 @@ export const STATUS_FILLS: Record<WorkOrderStatus, string> = {
 };
 
 /** Base comum dos cards do painel (status e atrasadas). */
-export const DASHBOARD_CARD_CLASS =
-  'group flex h-full flex-col rounded-card border p-4 transition-colors';
+export const DASHBOARD_CARD_CLASS = 'group flex h-full flex-col rounded-card border p-4';
