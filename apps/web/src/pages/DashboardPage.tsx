@@ -1,5 +1,10 @@
 import { Link } from 'react-router';
+import { Button } from '../components/Button';
+import { buttonClass } from '../components/button-styles';
+import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
+import { Spinner } from '../components/Spinner';
+import { DashboardSkeleton } from '../features/dashboard/DashboardSkeleton';
 import {
   myOpenOrdersHref,
   overdueListHref,
@@ -16,19 +21,67 @@ import { formatNumber, formatTime } from '../lib/format';
 
 export function DashboardPage() {
   const query = useDashboardSummary();
+  const { data } = query;
+  // Já há números na tela e outra busca está a caminho (botão, nova tentativa ou cache velho).
+  const refreshing = data !== undefined && query.isFetching;
+
+  function refresh() {
+    // Ignora clique repetido durante a busca (o botão usa aria-disabled, ver abaixo).
+    if (!query.isFetching) void query.refetch();
+  }
 
   return (
     <main className="space-y-6">
-      <h1 className="text-2xl font-semibold">Painel</h1>
-      {query.data ? (
-        <DashboardContent summary={query.data} />
-      ) : query.isError ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Painel</h1>
+          {data && (
+            <p className="text-sm text-muted">Atualizado às {formatTime(data.generatedAt)}</p>
+          )}
+        </div>
+        {data && (
+          <Button
+            onClick={refresh}
+            // aria-disabled em vez de disabled: um botão desabilitado perde o foco do teclado,
+            // e a pessoa teria de procurá-lo de novo depois de cada atualização.
+            aria-disabled={refreshing}
+            className="aria-disabled:cursor-wait aria-disabled:opacity-60"
+          >
+            {refreshing && <Spinner />}
+            {refreshing ? 'Atualizando…' : 'Atualizar'}
+          </Button>
+        )}
+      </div>
+
+      {query.isError && (
+        // Com números anteriores, o erro aparece acima deles: o TanStack Query mantém o `data`
+        // quando uma nova busca falha.
         <ErrorState
           error={query.error}
           onRetry={() => void query.refetch()}
           retrying={query.isFetching}
         />
-      ) : null}
+      )}
+
+      {data ? (
+        <div aria-busy={refreshing} className="space-y-6">
+          {summarizeStatus(data.byStatus).total === 0 ? (
+            <EmptyState
+              title="Nenhuma ordem cadastrada ainda."
+              description="Os números do painel aparecem assim que a primeira ordem for criada."
+              action={
+                <Link to="/orders/new" className={buttonClass('primary', 'md')}>
+                  Nova ordem
+                </Link>
+              }
+            />
+          ) : (
+            <DashboardContent summary={data} />
+          )}
+        </div>
+      ) : (
+        query.isPending && <DashboardSkeleton />
+      )}
     </main>
   );
 }
@@ -44,8 +97,6 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
 
   return (
     <>
-      <p className="text-sm text-muted">Atualizado às {formatTime(summary.generatedAt)}</p>
-
       <section aria-labelledby="painel-status" className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="painel-status" className={sectionTitle}>
@@ -98,7 +149,16 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
         <h2 id="painel-atrasadas" className={sectionTitle}>
           Ordens atrasadas
         </h2>
-        <OverdueList orders={overdue.items} now={now} />
+        {overdue.count === 0 ? (
+          <p className="flex items-center gap-2 rounded-card border border-tone-success-bg bg-tone-success-bg px-4 py-3 font-medium text-tone-success-fg">
+            <svg aria-hidden="true" viewBox="0 0 20 20" className="size-5" fill="currentColor">
+              <path d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-1 11.4-3.7-3.7 1.4-1.4L9 10.6l4.3-4.3 1.4 1.4L9 13.4Z" />
+            </svg>
+            Nenhuma ordem atrasada. Tudo dentro do prazo.
+          </p>
+        ) : (
+          <OverdueList orders={overdue.items} now={now} />
+        )}
         {overdue.count > overdue.items.length && (
           <Link
             to={overdueListHref()}
