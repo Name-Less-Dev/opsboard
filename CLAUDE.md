@@ -37,7 +37,7 @@ em entrevista tudo o que estiver aqui.
 ## Estrutura
 
 ```
-apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui; leitura do histórico ainda não existe), dashboard, clock
+apps/api   # NestJS: health, prisma (PrismaService global), users, auth, work-orders (eventos gravados aqui), events (leitura do histórico), dashboard, clock
 apps/web   # React: pages, components, features (auth, work-orders, dashboard), lib (cliente HTTP, erros, query, tema), test (MSW)
 ```
 
@@ -119,6 +119,13 @@ Listagem e painel:
 - Em `status` e `priority`, espaços e valores repetidos são ignorados, assim como itens vazios (`OPEN,`). `q` passa por trim, é ignorado se vazio e dá 400 acima de 100 caracteres.
 - A prioridade ordena por gravidade (`LOW` < `MEDIUM` < `HIGH` < `URGENT`), que é a ordem de declaração do enum no Postgres.
 
+Histórico de eventos:
+
+- O histórico é append-only: nenhum endpoint edita ou apaga eventos. A única remoção é em cascata, quando a ordem é excluída.
+- Qualquer usuário autenticado lê o histórico de qualquer ordem (`GET /work-orders/:id/events`). Ordem inexistente dá 404 `NOT_FOUND`.
+- Ordem: mais recentes primeiro (`createdAt desc`), com desempate por `id` no mesmo sentido.
+- A resposta nunca traz e-mail, hash nem o `payload` bruto: o `actor` tem só `id` e `name`, e os `details` são montados por tipo (`events/event-details.mapper.ts`). Na edição da descrição, sai só o nome do campo, sem o texto. Evento com payload em formato inesperado sai com `details: null`, sem derrubar a leitura.
+
 ## Convenções do front (`apps/web`)
 
 - **URL como fonte da verdade** da lista: filtros, busca, ordenação e página vivem na query string. A tela lê com `parseListParams` e escreve com `serializeListParams` (`features/work-orders/list-params.ts`); valor inválido na URL é descartado, nunca quebra a tela. F5, colar a URL e voltar/avançar reproduzem a mesma tela.
@@ -138,6 +145,8 @@ Listagem e painel:
 - **Links do painel para a lista** são montados com `serializeListParams` a partir de `ListParams` (nunca string concatenada); um teste passa cada link por `parseListParams` e confere o filtro.
 - **Relógio do painel**: "há N dias" e "Atualizado às HH:mm" usam o `generatedAt` da resposta como "agora", não o relógio do navegador.
 - **Chaves de cache centralizadas**: a do painel fica em `features/dashboard/dashboard-keys.ts`; as mutações de ordem (criar, editar, status, atribuir, excluir) invalidam lista, detalhe e painel.
+- **Histórico da ordem** (`features/work-orders/history/`): o texto de cada evento vem só de `describeEvent(event)`, uma função pura que lê os `details` pelo tipo gerado (`api-types.ts`); tipo ou formato desconhecido vira texto genérico. A página da linha do tempo fica em estado local da seção (não na URL), com `pageSize` 10.
+- **Chaves do histórico** em `workOrderKeys.history(id, page)`: editar, mudar status e atribuir invalidam o histórico daquela ordem; excluir remove do cache o detalhe e o histórico.
 - **Painel sem atualização automática**: sem polling, WebSocket ou `refetchOnWindowFocus`; `staleTime` de 30 s e botão "Atualizar".
 
 | Enum                      | Rótulo                |
