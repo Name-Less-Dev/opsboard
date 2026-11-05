@@ -3,6 +3,7 @@ import { AuthenticatedLayout } from './components/AuthenticatedLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DashboardPage } from './pages/DashboardPage';
 import { EditOrderPage } from './pages/EditOrderPage';
+import { ImportOrdersPage } from './pages/ImportOrdersPage';
 import { LoginPage } from './pages/LoginPage';
 import { NewOrderPage } from './pages/NewOrderPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
@@ -18,6 +19,7 @@ export function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/new" element={<NewOrderPage />} />
+          <Route path="orders/import" element={<ImportOrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="orders/:id/edit" element={<EditOrderPage />} />
         </Route>
