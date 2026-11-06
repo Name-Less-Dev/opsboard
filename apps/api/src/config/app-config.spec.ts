@@ -114,6 +114,7 @@ describe('loadAppConfig', () => {
     ['TRUST_PROXY negativo', { TRUST_PROXY: '-1' }, 'TRUST_PROXY'],
     ['TRUST_PROXY como true', { TRUST_PROXY: 'true' }, 'TRUST_PROXY'],
     ['LOGIN_RATE_LIMIT zero', { LOGIN_RATE_LIMIT: '0' }, 'LOGIN_RATE_LIMIT'],
+    ['LOGIN_RATE_LIMIT não numérico', { LOGIN_RATE_LIMIT: 'muitas' }, 'LOGIN_RATE_LIMIT'],
     ['LOGIN_RATE_TTL fracionado', { LOGIN_RATE_TTL: '1.5' }, 'LOGIN_RATE_TTL'],
     ['SWAGGER_ENABLED como 1', { SWAGGER_ENABLED: '1' }, 'SWAGGER_ENABLED'],
     ['APP_TIMEZONE inexistente', { APP_TIMEZONE: 'America/Atlantida' }, 'APP_TIMEZONE'],
@@ -138,6 +139,16 @@ describe('loadAppConfig', () => {
       'JWT_EXPIRES_IN',
       'PORT',
     ]);
+  });
+
+  describe('LOGIN_RATE_LIMIT', () => {
+    it('padrão de 5 tentativas por janela', () => {
+      expect(loadAppConfig(VALID).loginRateLimit).toBe(5);
+    });
+
+    it('aceita 1000, o valor usado pelo e2e (muitos logins do mesmo IP)', () => {
+      expect(loadAppConfig({ ...VALID, LOGIN_RATE_LIMIT: '1000' }).loginRateLimit).toBe(1000);
+    });
   });
 
   describe('SWAGGER_ENABLED', () => {
