@@ -54,11 +54,11 @@ describe('Painel (/dashboard)', () => {
     await openDashboard();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Painel' })).toBeInTheDocument();
-    expect(card(/^Abertas: 5 ordens/)).toBeInTheDocument();
-    expect(card(/^Em andamento: 2 ordens/)).toBeInTheDocument();
-    expect(card(/^Concluídas: 2 ordens/)).toBeInTheDocument();
-    expect(card(/^Canceladas: 1 ordem,/)).toBeInTheDocument();
-    expect(card(/^Atrasadas: 4 ordens/)).toBeInTheDocument();
+    expect(card(/^Abertas: 5,/)).toBeInTheDocument();
+    expect(card(/^Em andamento: 2,/)).toBeInTheDocument();
+    expect(card(/^Concluídas: 2,/)).toBeInTheDocument();
+    expect(card(/^Canceladas: 1,/)).toBeInTheDocument();
+    expect(card(/^Atrasadas: 4,/)).toBeInTheDocument();
     expect(definition(/^Total/)).toBe('10');
     expect(definition(/^Ativas/)).toBe('7');
     // 15:00 UTC = 12:00 em São Paulo (fuso dos testes).
@@ -70,9 +70,9 @@ describe('Painel (/dashboard)', () => {
     mockSummary(ok(makeSummary({ byStatus: { OPEN: 3, IN_PROGRESS: 0, DONE: 0, CANCELLED: 0 } })));
     await openDashboard();
 
-    expect(card(/^Em andamento: 0 ordens, ver lista$/)).toHaveTextContent('0');
-    expect(card(/^Concluídas: 0 ordens, ver lista$/)).toBeInTheDocument();
-    expect(card(/^Canceladas: 0 ordens, ver lista$/)).toBeInTheDocument();
+    expect(card(/^Em andamento: 0, ver lista$/)).toHaveTextContent('0');
+    expect(card(/^Concluídas: 0, ver lista$/)).toBeInTheDocument();
+    expect(card(/^Canceladas: 0, ver lista$/)).toBeInTheDocument();
     const row = screen.getByRole('row', { name: /Canceladas/ });
     expect(
       within(row)
@@ -176,7 +176,7 @@ describe('Painel (/dashboard)', () => {
 
     expect(screen.getByText(/Nenhuma ordem atrasada/)).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: /Ordens atrasadas/ })).not.toBeInTheDocument();
-    expect(card(/^Atrasadas: 0 ordens/)).toBeInTheDocument();
+    expect(card(/^Atrasadas: 0,/)).toBeInTheDocument();
   });
 
   it('sistema sem nenhuma ordem: estado vazio com "Nova ordem", sem cards nem barra', async () => {

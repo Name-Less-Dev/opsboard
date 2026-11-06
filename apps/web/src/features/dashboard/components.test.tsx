@@ -19,16 +19,18 @@ describe('componentes do painel', () => {
         <StatusCard status="DONE" count={1} href="/orders?status=DONE" />
       </>,
     );
-    expect(screen.getByRole('link', { name: 'Abertas: 5 ordens, ver lista' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Abertas: 5, ver lista' })).toHaveAttribute(
       'href',
       '/orders?status=OPEN',
     );
-    expect(screen.getByRole('link', { name: 'Concluídas: 1 ordem, ver lista' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Concluídas: 1, ver lista' })).toBeVisible();
   });
 
   it('OverdueCard: texto "Atrasadas" e número, não só cor', () => {
     inRouter(<OverdueCard count={1234} href="/orders?overdue=true" />);
-    const link = screen.getByRole('link', { name: 'Atrasadas: 1.234 ordens, ver lista' });
+    const link = screen.getByRole('link', {
+      name: 'Atrasadas: 1.234, prazo vencido e ainda ativas, ver lista',
+    });
     expect(link).toHaveTextContent('Atrasadas');
     expect(link).toHaveTextContent('1.234');
   });

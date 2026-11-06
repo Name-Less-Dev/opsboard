@@ -69,9 +69,19 @@ function DetailSkeleton() {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+// Cada item é um <div> com <dt> e <dd> direto dentro do <dl> (o único agrupamento que o HTML
+// permite): o espaçamento extra, como o col-span da descrição, vai neste mesmo <div>.
+function Field({
+  label,
+  className = '',
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${className}`}>
       <dt className="text-sm text-muted">{label}</dt>
       <dd className="mt-0.5 break-words">{children}</dd>
     </div>
@@ -256,15 +266,13 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
       )}
 
       <dl className="grid gap-4 rounded-card border border-border bg-surface p-4 sm:grid-cols-2 sm:p-6">
-        <div className="sm:col-span-2">
-          <Field label="Descrição">
-            {order.description ? (
-              <span className="whitespace-pre-line">{order.description}</span>
-            ) : (
-              <span className="text-muted">Sem descrição</span>
-            )}
-          </Field>
-        </div>
+        <Field label="Descrição" className="sm:col-span-2">
+          {order.description ? (
+            <span className="whitespace-pre-line">{order.description}</span>
+          ) : (
+            <span className="text-muted">Sem descrição</span>
+          )}
+        </Field>
         <Field label="Responsável">
           {order.assignee?.name ?? <span className="text-muted">Sem responsável</span>}
         </Field>
