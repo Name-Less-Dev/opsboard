@@ -317,10 +317,10 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
       expect(byTitle.get('Revisar extintores do 3º andar')?.priority).toBe('MEDIUM');
       // Só a data: fim do dia em America/Sao_Paulo (UTC-3).
       expect(byTitle.get('Trocar filtro do ar-condicionado da sala 2')?.dueDate.toISOString()).toBe(
-        '2030-03-16T02:59:59.999Z',
+        '2099-03-16T02:59:59.999Z',
       );
       expect(byTitle.get('Consertar vazamento na copa')?.dueDate.toISOString()).toBe(
-        '2030-01-20T13:00:00.000Z',
+        '2099-01-20T13:00:00.000Z',
       );
       expect(byTitle.get('Inventário do almoxarifado')?.description).toBe(
         'Contar itens das prateleiras A a D.\nRegistrar divergências na planilha do setor.',
@@ -328,12 +328,12 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
     });
 
     it('sem dryRun, o padrão é importar de verdade', async () => {
-      await upload(csvFile(['Ordem padrão;;LOW;2030-01-01;'])).expect(201);
+      await upload(csvFile(['Ordem padrão;;LOW;2099-01-01;'])).expect(201);
       expect(await prisma.workOrder.count()).toBe(1);
     });
 
     it('o histórico da ordem importada mostra só a criação, sem details', async () => {
-      await upload(csvFile(['Importada;;HIGH;2030-01-01;']), { dryRun: false }).expect(201);
+      await upload(csvFile(['Importada;;HIGH;2099-01-01;']), { dryRun: false }).expect(201);
       const { id } = await prisma.workOrder.findFirstOrThrow();
       const response = await auth(
         request(server()).get(`/work-orders/${id}/events`),
@@ -346,9 +346,9 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
 
     it('prazo só com data segue o APP_TIMEZONE configurado', async () => {
       config.appTimezone = 'UTC';
-      await upload(csvFile(['Em UTC;;LOW;2030-03-15;'])).expect(201);
+      await upload(csvFile(['Em UTC;;LOW;2099-03-15;'])).expect(201);
       const order = await prisma.workOrder.findFirstOrThrow();
-      expect(order.dueDate.toISOString()).toBe('2030-03-15T23:59:59.999Z');
+      expect(order.dueDate.toISOString()).toBe('2099-03-15T23:59:59.999Z');
     });
 
     it('tudo ou nada: uma linha inválida no meio → 422 e nenhuma ordem ou evento gravado', async () => {
@@ -356,10 +356,10 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
       const before = await counts();
       const response = await upload(
         csvFile([
-          'Válida um;;LOW;2030-01-01;',
-          'Válida dois;;HIGH;2030-01-01;ana@opsboard.dev',
-          'Inválida;;Gravíssima;2030-01-01;',
-          'Válida três;;URGENT;2030-01-01;',
+          'Válida um;;LOW;2099-01-01;',
+          'Válida dois;;HIGH;2099-01-01;ana@opsboard.dev',
+          'Inválida;;Gravíssima;2099-01-01;',
+          'Válida três;;URGENT;2099-01-01;',
         ]),
         { dryRun: false },
       ).expect(422);
@@ -389,9 +389,9 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
       try {
         const response = await upload(
           csvFile([
-            'Primeira ok;;LOW;2030-01-01;',
-            'Segunda ok;;LOW;2030-01-01;',
-            'Terceira falha;;LOW;2030-01-01;',
+            'Primeira ok;;LOW;2099-01-01;',
+            'Segunda ok;;LOW;2099-01-01;',
+            'Terceira falha;;LOW;2099-01-01;',
           ]),
           { dryRun: false },
         ).expect(500);
@@ -427,7 +427,7 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
     });
 
     it('relatório limitado a 100 erros, com totalErrors real', async () => {
-      const rows = Array.from({ length: 150 }, (_, index) => `Ordem ${index};;X;2030-01-01;`);
+      const rows = Array.from({ length: 150 }, (_, index) => `Ordem ${index};;X;2099-01-01;`);
       const report = (await upload(csvFile(rows), { dryRun: true }).expect(200)).body as ReportJson;
       expect(report).toMatchObject({ totalRows: 150, validRows: 0, totalErrors: 150 });
       expect(report.errors).toHaveLength(100);
@@ -443,7 +443,7 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
         ['vazio', Buffer.alloc(0), /vazio/],
         ['só o BOM', Buffer.from(BOM, 'utf8'), /vazio/],
         ['cabeçalho sem title', 'description;priority\r\nx;LOW\r\n', /title/],
-        ['coluna desconhecida', `${HEADER};status\r\nAbc;;LOW;2030-01-01;;OPEN\r\n`, /status/],
+        ['coluna desconhecida', `${HEADER};status\r\nAbc;;LOW;2099-01-01;;OPEN\r\n`, /status/],
         ['coluna repetida', 'title;priority;title\r\nAbc;LOW;Def\r\n', /mais de uma vez/],
         [
           'Latin-1',
@@ -454,8 +454,8 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
           ]),
           /UTF-8/,
         ],
-        ['CSV malformado (aspas abertas)', `${HEADER}\r\n"Abc;;LOW;2030-01-01;\r\n`, /malformado/],
-        ['linha com colunas a mais', `${HEADER}\r\nAbc;;LOW;2030-01-01;;extra\r\n`, /colunas/],
+        ['CSV malformado (aspas abertas)', `${HEADER}\r\n"Abc;;LOW;2099-01-01;\r\n`, /malformado/],
+        ['linha com colunas a mais', `${HEADER}\r\nAbc;;LOW;2099-01-01;;extra\r\n`, /colunas/],
         ['só o cabeçalho', `${HEADER}\r\n`, /cabeçalho/],
       ])('%s', async (_label, content, message) => {
         const response = await upload(content, { dryRun: true }).expect(400);
@@ -465,7 +465,7 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
 
       it('mais de IMPORT_MAX_ROWS linhas', async () => {
         config.importMaxRows = 3;
-        const rows = (n: number) => Array.from({ length: n }, () => 'Abc;;LOW;2030-01-01;');
+        const rows = (n: number) => Array.from({ length: n }, () => 'Abc;;LOW;2099-01-01;');
         await upload(csvFile(rows(3)), { dryRun: true }).expect(200);
         const response = await upload(csvFile(rows(4)), { dryRun: true }).expect(400);
         errorCode('IMPORT_FILE_INVALID')(response);
@@ -481,7 +481,7 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
       });
 
       it('arquivo em outro campo', async () => {
-        const response = await upload(csvFile(['Abc;;LOW;2030-01-01;']), { field: 'arquivo' });
+        const response = await upload(csvFile(['Abc;;LOW;2099-01-01;']), { field: 'arquivo' });
         expect(response.status).toBe(400);
         errorCode('IMPORT_FILE_INVALID')(response);
       });
@@ -510,7 +510,7 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
 
       it('dryRun com valor inválido: 400 de validação', async () => {
         await auth(request(server()).post('/work-orders/import?dryRun=talvez'), supervisor.token)
-          .attach('file', Buffer.from(csvFile(['Abc;;LOW;2030-01-01;'])), 'a.csv')
+          .attach('file', Buffer.from(csvFile(['Abc;;LOW;2099-01-01;'])), 'a.csv')
           .expect(400)
           .expect(errorCode('VALIDATION_ERROR'));
       });
@@ -532,23 +532,23 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
     });
 
     it('operador: 403, sem gravar; sem token: 401', async () => {
-      const file = csvFile(['Abc;;LOW;2030-01-01;']);
+      const file = csvFile(['Abc;;LOW;2099-01-01;']);
       await upload(file, { token: ana.token }).expect(403).expect(errorCode('FORBIDDEN'));
       await upload(file, { token: '' }).expect(401).expect(errorCode('UNAUTHORIZED'));
       expect(await prisma.workOrder.count()).toBe(0);
     });
 
     it.each([
-      ['`;` com CRLF e BOM', `${BOM}${csvFile(['Abc;;LOW;2030-01-01;'])}`],
-      ['`;` com LF', csvFile(['Abc;;LOW;2030-01-01;'], HEADER, '\n')],
-      ['`,` com CRLF', csvFile(['Abc,,LOW,2030-01-01,'], HEADER.replaceAll(';', ','))],
+      ['`;` com CRLF e BOM', `${BOM}${csvFile(['Abc;;LOW;2099-01-01;'])}`],
+      ['`;` com LF', csvFile(['Abc;;LOW;2099-01-01;'], HEADER, '\n')],
+      ['`,` com CRLF', csvFile(['Abc,,LOW,2099-01-01,'], HEADER.replaceAll(';', ','))],
       [
         '`,` com LF e BOM',
-        `${BOM}${csvFile(['"A, b",,LOW,2030-01-01,'], HEADER.replaceAll(';', ','), '\n')}`,
+        `${BOM}${csvFile(['"A, b",,LOW,2099-01-01,'], HEADER.replaceAll(';', ','), '\n')}`,
       ],
       [
         'cabeçalho em maiúsculas e só as colunas obrigatórias',
-        'TITLE;Priority;DUEDATE\nAbc;Baixa;2030-01-01\n',
+        'TITLE;Priority;DUEDATE\nAbc;Baixa;2099-01-01\n',
       ],
     ])('aceita %s', async (_label, content) => {
       const response = await upload(content, { dryRun: false }).expect(201);
@@ -562,8 +562,8 @@ describe('CSV: exportação e importação (integração com banco real)', () =>
       );
       try {
         const secret = 'MARCADOR-SIGILOSO-7f3a';
-        const good = csvFile([`${secret} ok;${secret} desc;LOW;2030-01-01;`]);
-        const bad = csvFile([`${secret} ruim;;Nenhuma;2030-01-01;${secret}@x.dev`]);
+        const good = csvFile([`${secret} ok;${secret} desc;LOW;2099-01-01;`]);
+        const bad = csvFile([`${secret} ruim;;Nenhuma;2099-01-01;${secret}@x.dev`]);
         await upload(good, { dryRun: true }).expect(200);
         await upload(good, { dryRun: false }).expect(201);
         await upload(bad, { dryRun: false }).expect(422);

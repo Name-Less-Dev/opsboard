@@ -276,6 +276,10 @@ Na tela (`/orders/import`, botão "Importar CSV" da lista, só para supervisor):
 Depois de importar, a tela volta para a lista com "N ordens importadas.", e a lista e o painel já
 aparecem atualizados. Cada ordem importada tem o evento de criação no histórico.
 
+> **Prazos dos exemplos:** os arquivos de `docs/examples/` usam prazos fixos em 2099 para continuarem
+> válidos por muito tempo (a importação recusa prazo no passado). Se algum dia vencerem, troque o ano
+> nos dois arquivos e nos testes da API que leem esses arquivos (`csv.e2e-spec.ts`).
+
 ### Salvar em UTF-8 no Excel
 
 Em **Arquivo → Salvar como**, escolha o tipo **CSV UTF-8 (delimitado por vírgulas) (\*.csv)**. O
