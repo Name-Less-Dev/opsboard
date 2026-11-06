@@ -1,0 +1,157 @@
+# CI do OpsBoard. Cada passo chama um script npm do repositório: qualquer falha se reproduz na
+# máquina com o mesmo comando (veja "Testes" no README). Nenhum segredo real: tudo aqui é valor de
+# teste descartável.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Um push novo na mesma branch cancela a execução antiga.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint e typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run lint
+      - run: npm run typecheck
+
+  api:
+    name: API (unitários e integração, com cobertura)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: opsboard
+          POSTGRES_PASSWORD: opsboard
+          POSTGRES_DB: opsboard
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U opsboard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # O globalSetup dos testes cria o banco `_test` e aplica as migrations nele.
+      TEST_DATABASE_URL: postgresql://opsboard:opsboard@localhost:5432/opsboard_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run test:api
+      - name: Relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-coverage
+          path: apps/api/coverage
+          if-no-files-found: ignore
+
+  web:
+    name: Web (Vitest, com cobertura)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:web
+
+  contract:
+    name: Contrato OpenAPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Falha se openapi.json ou api-types.ts estiverem desatualizados em relação ao código.
+      - run: npm run check:contract
+
+  e2e:
+    name: e2e (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: opsboard
+          POSTGRES_PASSWORD: opsboard
+          POSTGRES_DB: opsboard
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U opsboard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      E2E_DATABASE_URL: postgresql://opsboard:opsboard@localhost:5432/opsboard_e2e
+      E2E_PASSWORD: senha-descartavel-do-ci
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run e2e:install
+      - run: npm run e2e
+      - name: Relatório do Playwright e traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 14
+
+  docker:
+    name: Docker Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # .env.ci a partir do .env.example, com um JWT_SECRET gerado na hora.
+      - run: npm run docker:ci:env
+      - run: npm run docker:ci:up
+      - run: npm run docker:ci:smoke
+      - name: Logs do Compose
+        if: failure()
+        run: npm run docker:ci:logs
+      - name: Derrubar a pilha
+        if: always()
+        run: npm run docker:ci:down
