@@ -8,7 +8,7 @@ import { parseCount } from './data.ts';
  * preenchido quando a lista está assentada (sem requisição a caminho), então já espera sozinho.
  */
 export async function listTotal(page: Page): Promise<number> {
-  const announcement = page.getByText(/^[\d.]+ ordens? encontradas?$/);
+  const announcement = page.getByText(/^[\d.]+ (ordem encontrada|ordens encontradas)$/);
   await expect(announcement).toHaveCount(1);
   return parseCount((await announcement.textContent()) ?? '');
 }
@@ -22,9 +22,9 @@ export const DASHBOARD_CARDS = [
 ] as const;
 export type DashboardCard = (typeof DASHBOARD_CARDS)[number];
 
-/** Link do card no painel ("Abertas: 12 ordens, ver lista"). */
+/** Link do card no painel ("Abertas: 12, ver lista"). */
 export function dashboardCard(page: Page, card: DashboardCard) {
-  return page.getByRole('link', { name: new RegExp(`^${card}: [\\d.]+ ordens?, ver lista$`) });
+  return page.getByRole('link', { name: new RegExp(`^${card}: [\\d.]+, `) });
 }
 
 /** Número de um card do painel, lido do nome acessível do link. */

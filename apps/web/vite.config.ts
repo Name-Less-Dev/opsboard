@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Só os testes do front; os do Playwright (e2e/) rodam com `npm run e2e`.
+    include: ['src/**/*.test.{ts,tsx}'],
     // Fuso fixo para a conversão de datas locais ter resultado conhecido em qualquer máquina.
     env: { TZ: 'America/Sao_Paulo' },
     coverage: {
