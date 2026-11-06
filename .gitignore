@@ -12,9 +12,11 @@ coverage/
 .env.*
 !.env.example
 
-# Playwright
+# Playwright (relatórios, traces e sessões salvas pelo setup do e2e)
 playwright-report/
 test-results/
+blob-report/
+apps/web/e2e/.auth/
 
 # Logs e sistema
 *.log

@@ -21,7 +21,10 @@
     "e2e:db": "npm run e2e:db -w @opsboard/api",
     "contract:generate": "npm run openapi:export -w @opsboard/api && npm run types:generate -w @opsboard/web",
     "check:contract": "npm run contract:generate && git diff --exit-code -- apps/api/openapi.json apps/web/src/lib/api-types.ts",
-    "test:cov": "npm run test:cov --workspaces --if-present"
+    "test:cov": "npm run test:cov --workspaces --if-present",
+    "e2e": "node scripts/e2e-ensure-db.mjs && npm run e2e -w @opsboard/web",
+    "e2e:ui": "node scripts/e2e-ensure-db.mjs && npm run e2e:ui -w @opsboard/web",
+    "e2e:screenshots": "node scripts/e2e-ensure-db.mjs && npm run e2e:screenshots -w @opsboard/web"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

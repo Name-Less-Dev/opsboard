@@ -64,6 +64,13 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
 
+  // Testes e2e (Playwright): rodam no Node. O `use` das fixtures não é o hook do React.
+  {
+    files: ['apps/web/e2e/**/*.ts', 'apps/web/playwright*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: { 'react-hooks/rules-of-hooks': 'off', 'react-refresh/only-export-components': 'off' },
+  },
+
   // Sempre por último: desliga regras de estilo que o Prettier já cuida.
   prettier,
 );

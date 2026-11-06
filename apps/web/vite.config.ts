@@ -22,7 +22,8 @@ export default defineConfig({
     // Mesmo contrato do nginx no Docker: /api/health -> http://localhost:3000/health.
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        // O e2e aponta para a API dele (porta própria); o `vite preview` usa este mesmo proxy.
+        target: process.env.OPSBOARD_API_URL ?? 'http://localhost:3000',
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
