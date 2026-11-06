@@ -24,7 +24,11 @@
     "test:cov": "npm run test:cov --workspaces --if-present",
     "e2e": "node scripts/e2e-ensure-db.mjs && npm run e2e -w @opsboard/web",
     "e2e:ui": "node scripts/e2e-ensure-db.mjs && npm run e2e:ui -w @opsboard/web",
-    "e2e:screenshots": "node scripts/e2e-ensure-db.mjs && npm run e2e:screenshots -w @opsboard/web"
+    "e2e:screenshots": "node scripts/e2e-ensure-db.mjs && npm run e2e:screenshots -w @opsboard/web",
+    "typecheck": "tsc -p apps/api --noEmit && tsc -b apps/web",
+    "test:api": "npm run test:cov -w @opsboard/api",
+    "test:web": "npm run test:cov -w @opsboard/web",
+    "ci": "npm run lint && npm run typecheck && npm run test:api && npm run test:web && npm run check:contract"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
