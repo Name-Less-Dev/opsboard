@@ -193,6 +193,30 @@ Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true
 | `URGENT`                  | Urgente               |
 | `OPERATOR` / `SUPERVISOR` | Operador / Supervisor |
 
+## Testes de ponta a ponta (e2e) e CI
+
+Regras dos testes e2e (Playwright, em `apps/web/e2e/`):
+
+- O e2e nunca usa o banco de desenvolvimento nem o de integração: usa um banco dedicado cujo nome termina em `_e2e` (`opsboard_e2e`). O script do banco recusa qualquer outro nome.
+- Nenhum teste depende de ordem nem de dados deixados por outro. Cada teste cria o que precisa, com título único (prefixo `E2E-` e sufixo aleatório), e confere contagens por diferença (antes e depois), nunca por valor absoluto.
+- Proibido `page.waitForTimeout` e esperas fixas: só asserções que esperam sozinhas (`expect(locator)...`) e `expect.poll`.
+- Seletores por papel e texto acessível (`getByRole`, `getByLabel`, `getByText`). `data-testid` só sem alternativa acessível, com justificativa.
+- Teste intermitente é bug: corrige-se a causa. Retries não sobem para esconder instabilidade (só 1 retry no CI, para gerar o trace).
+- Nenhuma dependência de rede externa (sem fontes, CDNs ou serviços de terceiros).
+
+Regras do CI (GitHub Actions, `.github/workflows/ci.yml`):
+
+- Todo comando do workflow existe como script npm do repositório: qualquer falha do CI se reproduz localmente com o mesmo comando (`npm run ci`, `npm run e2e`).
+- Nenhum segredo real: tudo é valor de teste descartável definido no próprio workflow.
+- Proteção de branch não é configurada por código; é feita nas opções do repositório no GitHub.
+
+| Camada     | Ferramenta                                 | O que cobre                                                                                          | Banco             |
+| ---------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ----------------- |
+| Unitário   | Jest (API), Vitest (web)                   | Funções puras: política, filtros, CSV, mapeadores, validação de ambiente, formatação, esquemas       | Nenhum            |
+| Integração | Jest + supertest (API), Vitest + MSW (web) | API real contra Postgres; telas reais com a rede simulada                                            | `opsboard_test`   |
+| e2e        | Playwright (Chromium + celular)            | Navegador real → front compilado → API compilada → Postgres: fluxos de cada perfil, erros, CSV, a11y | `opsboard_e2e`    |
+| CI         | GitHub Actions                             | Lint, typecheck, testes com cobertura, contrato, e2e e subida do Docker Compose a cada push/PR       | Service container |
+
 ## Formato de erro
 
 Toda resposta de erro, de qualquer rota, tem este formato:
