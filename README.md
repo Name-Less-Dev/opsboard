@@ -1,5 +1,10 @@
 # OpsBoard
 
+<!-- Badge do CI: o repositório ainda não tem remoto no GitHub. Depois de publicar, troque
+     USUARIO/REPOSITORIO pelo caminho real e tire o comentário.
+[![CI](https://github.com/USUARIO/REPOSITORIO/actions/workflows/ci.yml/badge.svg)](https://github.com/USUARIO/REPOSITORIO/actions/workflows/ci.yml)
+-->
+
 Painel de ordens de serviço full-stack: operadores e supervisores acompanham ordens de serviço
 (abertura, andamento, conclusão), com histórico de eventos de cada ordem.
 
@@ -8,7 +13,8 @@ Painel de ordens de serviço full-stack: operadores e supervisores acompanham or
 > com fluxo de status e registro de eventos, e as telas de ordens: lista com busca, filtros,
 > ordenação e paginação; criar, ver, editar, mudar status, atribuir e excluir; e o painel com
 > contadores por status e ordens atrasadas; o histórico de cada ordem como linha do tempo no
-> detalhe; e a exportação da lista filtrada e a importação de ordens em lote por CSV.
+> detalhe; a exportação da lista filtrada e a importação de ordens em lote por CSV; e testes de
+> ponta a ponta (Playwright) com CI no GitHub Actions.
 
 ## Stack
 
@@ -581,6 +587,11 @@ Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true
 - **Só supervisor importa**: o operador não vê o botão, a tela mostra acesso negado e a API responde 403.
 - **CORS sem `Content-Disposition` exposto**: com o front na mesma origem não faz diferença. Um cliente em outra origem liberada em `CORS_ORIGINS` não leria o nome do arquivo e usaria o nome padrão.
 
+- **e2e só no Chromium**, com um projeto que emula celular. Firefox e WebKit ficaram de fora.
+- **e2e serial, com um banco compartilhado**: um worker só, sem paralelismo. Cada teste cria os próprios dados e compara contagens por diferença.
+- **Sem teste de carga e sem teste visual por comparação de imagens.** As capturas de `docs/screenshots/` são para o README, não para comparar.
+- **Campos nativos em inglês nas capturas**: o Chromium headless usado pelo Playwright não traz as traduções da interface, então o campo de data e o botão de arquivo aparecem em inglês nas imagens. No navegador de quem usa, eles seguem o idioma do sistema.
+
 ## Testes
 
 ```bash
@@ -603,7 +614,43 @@ Gera a cobertura da API (unitários e integração somados, em `apps/api/coverag
 (`apps/web/coverage`), e falha abaixo dos limites: 90% em `work-order.policy.ts`,
 `work-order-query.ts` e no mapeador de erros, mais um limite global modesto nos dois apps.
 
-## Testes de ponta a ponta (e2e) e CI
+### Como rodar cada camada
+
+| Comando                   | O que roda                                                                                               | Precisa de                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `npm test`                | Unitários e integração da API (Jest) e testes do web (Vitest)                                            | Postgres (`docker compose up -d db`)                    |
+| `npm run test:cov`        | O mesmo, com cobertura e os limites mínimos                                                              | Postgres                                                |
+| `npm run e2e`             | Sobe o Postgres do Compose se precisar, recria o `opsboard_e2e`, compila API e front e roda o Playwright | Docker (ou um Postgres acessível em `E2E_DATABASE_URL`) |
+| `npm run e2e:ui`          | O mesmo, no modo interativo do Playwright (escolher teste, ver passo a passo)                            | Docker                                                  |
+| `npm run e2e:screenshots` | Gera as capturas de `docs/screenshots/` (dois temas, desktop e celular); fora do `e2e` e do CI           | Docker                                                  |
+| `npm run ci`              | O que o CI roda sem Docker: lint, typecheck, API e web com cobertura e `check:contract`                  | Postgres                                                |
+
+Na primeira vez, instale o Chromium do Playwright com `npm run e2e:install` (no Linux ele também
+instala as dependências do sistema). O e2e usa as portas 3100 (API) e 4100 (web), nunca as de
+desenvolvimento, e se recusa a rodar num banco cujo nome não termine em `_e2e`.
+
+**Relatório e trace de uma falha.** Depois do `npm run e2e`, abra o relatório com
+`npx playwright show-report apps/web/playwright-report`. Cada teste que falhou tem a captura de tela,
+o vídeo e, no CI (onde há 1 retry), o trace. Para abrir um trace solto, use
+`npx playwright show-trace caminho/do/trace.zip`. No GitHub, o relatório e os traces ficam no
+artefato `playwright-report` da execução que falhou.
+
+**No CI** (`.github/workflows/ci.yml`), a cada push na `main`, pull request ou disparo manual,
+seis jobs rodam em paralelo:
+
+- `quality`: lint e typecheck;
+- `api`: testes com cobertura, contra um Postgres de service container, com o relatório de
+  cobertura como artefato;
+- `web`: testes do front com cobertura;
+- `contract`: `check:contract`;
+- `e2e`: Playwright, contra um Postgres de service container;
+- `docker`: sobe o Compose num projeto separado (`opsboard-ci`, com `.env.ci` e um `JWT_SECRET`
+  gerado na hora), confere `/health` e o front e derruba tudo com `down -v`.
+
+Cada passo é um script npm, então `npm run ci`, `npm run e2e` e os scripts `docker:ci:*`
+reproduzem qualquer falha localmente.
+
+### Regras do e2e e do CI
 
 Regras dos testes e2e (Playwright, em `apps/web/e2e/`):
 
@@ -695,6 +742,13 @@ Web em http://localhost:5173 (o Vite repassa `/api` para a API em `:3000`).
 | `npm run db:migrate`        | Cria/aplica migrations do Prisma                        |
 | `npm run db:seed`           | Popula o banco com dados de exemplo                     |
 | `npm run seed:large`        | Acrescenta 5.000 ordens `[volume]` (opcional)           |
+| `npm run e2e`               | Testes e2e (Playwright) com banco e pilha próprios      |
+| `npm run e2e:ui`            | e2e no modo interativo                                  |
+| `npm run e2e:screenshots`   | Capturas de tela do README                              |
+| `npm run e2e:install`       | Instala o Chromium do Playwright                        |
+| `npm run e2e:db`            | Recria o banco `opsboard_e2e` (recusa outros nomes)     |
+| `npm run ci`                | Lint, typecheck, testes com cobertura e contrato        |
+| `npm run typecheck`         | `tsc` da API e do web                                   |
 
 ## Estrutura
 

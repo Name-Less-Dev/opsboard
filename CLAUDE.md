@@ -45,19 +45,23 @@ Monorepo com npm workspaces (`apps/*`).
 
 ## Comandos (raiz)
 
-| Comando                     | O que faz                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------- |
-| `npm install`               | Instala as dependências de todos os workspaces (um único lockfile na raiz)            |
-| `npm run dev`               | Sobe API (:3000, watch) e web (:5173) juntos via `concurrently`                       |
-| `npm run build`             | Build de todos os apps                                                                |
-| `npm run test`              | Jest na API e Vitest no web. A API exige o Postgres no ar (`docker compose up -d db`) |
-| `npm run lint`              | ESLint (config única na raiz) + `prettier --check` no monorepo                        |
-| `npm run format`            | Formata tudo com Prettier                                                             |
-| `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api)              |
-| `docker compose down`       | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga)                      |
-| `npm run db:migrate`        | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env`                      |
-| `npm run db:seed`           | Recria os dados de exemplo (idempotente: apaga e insere de novo)                      |
-| `npm run seed:large`        | Acrescenta 5.000 ordens `[volume]` (opcional; substitui só as próprias)               |
+| Comando                     | O que faz                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm install`               | Instala as dependências de todos os workspaces (um único lockfile na raiz)                 |
+| `npm run dev`               | Sobe API (:3000, watch) e web (:5173) juntos via `concurrently`                            |
+| `npm run build`             | Build de todos os apps                                                                     |
+| `npm run test`              | Jest na API e Vitest no web. A API exige o Postgres no ar (`docker compose up -d db`)      |
+| `npm run lint`              | ESLint (config única na raiz) + `prettier --check` no monorepo                             |
+| `npm run format`            | Formata tudo com Prettier                                                                  |
+| `docker compose up --build` | Sobe db (:5432), api (:3000) e web (:8080, nginx com proxy `/api` → api)                   |
+| `docker compose down`       | Para os serviços (os dados ficam no volume `pgdata`; `-v` apaga)                           |
+| `npm run db:migrate`        | Cria/aplica migrations (`prisma migrate dev`) no banco do `.env`                           |
+| `npm run db:seed`           | Recria os dados de exemplo (idempotente: apaga e insere de novo)                           |
+| `npm run seed:large`        | Acrescenta 5.000 ordens `[volume]` (opcional; substitui só as próprias)                    |
+| `npm run e2e`               | Playwright: sobe o db se preciso, recria `opsboard_e2e`, compila e roda (portas 3100/4100) |
+| `npm run e2e:ui`            | e2e no modo interativo                                                                     |
+| `npm run e2e:screenshots`   | Gera `docs/screenshots/` (fora do e2e normal e do CI)                                      |
+| `npm run ci`                | Lint, typecheck, API e web com cobertura e `check:contract` (o mesmo do CI)                |
 
 > Por app: `npm run <script> -w @opsboard/api` ou `-w @opsboard/web`.
 > No Docker as migrations rodam sozinhas e o seed é `docker compose run --rm migrate npx prisma db seed`. Pelo host: `cp .env.example .env`, `docker compose up -d db` e os scripts `db:*`.
