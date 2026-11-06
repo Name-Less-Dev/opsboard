@@ -21,6 +21,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "seed:large": "tsx prisma/seed-large.ts",
+    "seed:e2e": "tsx prisma/seed-e2e.ts",
+    "e2e:db": "tsx prisma/e2e-db.ts",
     "openapi:export": "npm run build && node dist/scripts/export-openapi.js"
   },
   "dependencies": {
