@@ -24,6 +24,15 @@ export function AssignForm({
   const assign = useAssignWorkOrder(order.id);
   const current = order.assignee?.id ?? NONE;
   const [selected, setSelected] = useState(current);
+  // Responsável novo vindo da API: o seletor volta para o valor atual. Ajuste durante a
+  // renderização, e não com `key` no pai: recriar o formulário no meio da mutação descartava
+  // o onSuccess do `mutate` (o TanStack Query não chama callbacks de componente desmontado), e
+  // o aviso "Responsável atualizado." sumia quando o detalhe voltava antes do histórico.
+  const [shownCurrent, setShownCurrent] = useState(current);
+  if (current !== shownCurrent) {
+    setShownCurrent(current);
+    setSelected(current);
+  }
 
   // O responsável atual entra na lista mesmo antes de os usuários carregarem.
   const options = [

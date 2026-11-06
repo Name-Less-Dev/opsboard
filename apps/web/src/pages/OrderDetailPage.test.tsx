@@ -199,6 +199,40 @@ describe('Detalhe da ordem: atribuir e excluir', () => {
     expect(screen.getByText('Bruno Operador', { selector: 'dd' })).toBeInTheDocument();
   });
 
+  it('o aviso e o foco aparecem mesmo quando o detalhe volta antes do histórico', async () => {
+    // Como no navegador: o detalhe atualizado chega primeiro (com o responsável novo) e o
+    // histórico depois. Antes da correção, o formulário era recriado nesse intervalo e o
+    // onSuccess do `mutate` era descartado: sem aviso e sem foco no título.
+    const { order } = await openDetail(SUPERVISOR, orderFor('OPEN'));
+    await screen.findByRole('list', { name: 'Histórico da ordem' });
+    let release: () => void = () => {};
+    const historyGate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get(`/api/work-orders/${order.id}/events`, async () => {
+        await historyGate;
+        return HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 });
+      }),
+    );
+
+    const form = within(screen.getByRole('form', { name: 'Atribuir responsável' }));
+    await waitFor(() => expect(form.getByLabelText('Novo responsável')).toBeEnabled());
+    await userEvent.selectOptions(
+      form.getByLabelText('Novo responsável'),
+      'Bruno Operador (Operador)',
+    );
+    await userEvent.click(form.getByRole('button', { name: 'Atribuir responsável' }));
+
+    // O detalhe já mostra o responsável novo enquanto o histórico ainda não respondeu.
+    expect(await screen.findByText('Bruno Operador', { selector: 'dd' })).toBeInTheDocument();
+    release();
+
+    expect(await screen.findByText('Responsável atualizado.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
+    // O seletor recomeça do responsável atual, e o botão volta a ficar desabilitado.
+    expect(screen.getByLabelText('Novo responsável')).toHaveValue(OTHER_OPERATOR.id);
+    expect(screen.getByRole('button', { name: 'Atribuir responsável' })).toBeDisabled();
+  });
+
   it('excluir exige confirmação e volta para a lista com aviso', async () => {
     const { api, order } = await openDetail(SUPERVISOR, orderFor('DONE'));
 

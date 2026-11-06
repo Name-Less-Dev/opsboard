@@ -290,8 +290,6 @@ function OrderDetail({ order, fetchedAt }: { order: WorkOrder; fetchedAt: number
 
       {actions.assign && (
         <AssignForm
-          // Novo responsável vindo da API: o seletor recomeça do valor atual.
-          key={order.assignee?.id ?? 'none'}
           order={order}
           disabled={busy}
           onSuccess={() => {

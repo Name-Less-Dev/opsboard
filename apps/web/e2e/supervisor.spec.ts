@@ -21,8 +21,10 @@ test('cria com outro responsável e atribui a outra pessoa, com registro no hist
     .getByLabel('Novo responsável')
     .selectOption({ label: `${USERS.operator.name} (Operador)` });
   await page.getByRole('button', { name: 'Atribuir responsável' }).click();
-  // Sem conferir o aviso "Responsável atualizado.": ele não aparece hoje (bug conhecido, o
-  // formulário é recriado antes do callback de sucesso). O resultado é conferido na tela.
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Responsável atualizado.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeFocused();
   await expect(field(page, 'Responsável')).toHaveText(USERS.operator.name);
 
   await expect
