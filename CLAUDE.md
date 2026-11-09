@@ -211,6 +211,7 @@ Regras dos testes e2e (Playwright, em `apps/web/e2e/`):
 - Nenhum teste depende de ordem nem de dados deixados por outro. Cada teste cria o que precisa, com título único (prefixo `E2E-` e sufixo aleatório), e confere contagens por diferença (antes e depois), nunca por valor absoluto.
 - Proibido `page.waitForTimeout` e esperas fixas: só asserções que esperam sozinhas (`expect(locator)...`) e `expect.poll`.
 - Seletores por papel e texto acessível (`getByRole`, `getByLabel`, `getByText`). `data-testid` só sem alternativa acessível, com justificativa.
+- Exceção: no vídeo de demonstração (`apps/web/e2e-video/`, `npm run video:demo`), que não é teste, pausas fixas (`waitForTimeout`) são permitidas, só como tempo de leitura para quem assiste. Tudo que depende da aplicação continua esperando pelo elemento com `expect`.
 - Teste intermitente é bug: corrige-se a causa. Retries não sobem para esconder instabilidade (só 1 retry no CI, para gerar o trace).
 - Nenhuma dependência de rede externa (sem fontes, CDNs ou serviços de terceiros).
 

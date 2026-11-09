@@ -18,6 +18,9 @@ test-results/
 blob-report/
 apps/web/e2e/.auth/
 
+# Vídeo de demonstração e capturas das cenas (gerados por npm run video:demo; não versionar)
+docs/video/
+
 # Logs e sistema
 *.log
 npm-debug.log*

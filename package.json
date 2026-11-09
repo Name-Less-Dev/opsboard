@@ -38,7 +38,8 @@
     "docker:ci:smoke": "node scripts/docker-smoke.mjs",
     "docker:ci:logs": "docker compose -p opsboard-ci --env-file .env.ci logs",
     "docker:ci:down": "docker compose -p opsboard-ci --env-file .env.ci down -v",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "video:demo": "node scripts/video-demo.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

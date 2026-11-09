@@ -66,7 +66,7 @@ export default tseslint.config(
 
   // Testes e2e (Playwright): rodam no Node. O `use` das fixtures não é o hook do React.
   {
-    files: ['apps/web/e2e/**/*.ts', 'apps/web/playwright*.ts'],
+    files: ['apps/web/e2e/**/*.ts', 'apps/web/e2e-video/**/*.ts', 'apps/web/playwright*.ts'],
     languageOptions: { globals: globals.node },
     rules: { 'react-hooks/rules-of-hooks': 'off', 'react-refresh/only-export-components': 'off' },
   },

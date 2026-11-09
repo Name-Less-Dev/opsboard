@@ -1,49 +1,65 @@
-# Roteiro do vídeo (~2 minutos)
+# Roteiro do vídeo (gravado pelo Playwright)
 
-Roteiro para eu gravar a demonstração. URLs: front `<URL_DO_WEB>` e API `<URL_DA_API>` (as do
-[DEPLOY.md](DEPLOY.md)).
+O vídeo é gravado automaticamente por `npm run video:demo` (`apps/web/e2e-video/demo.spec.ts`), com
+cursor visível e legendas no rodapé. As legendas abaixo também servem de roteiro de voz, se eu quiser
+narrar depois. Duração alvo: 2 a 2,5 minutos.
 
-## Preparação (antes de apertar o gravar)
+## Como gravar
 
-1. **Acordar a API:** abra `<URL_DA_API>/health` e espere aparecer `"status":"ok"`. No plano free ela
-   dorme após 15 minutos sem uso e leva cerca de 1 minuto para acordar.
-2. **Dados limpos:** rode o `seed:demo` (passo 3 do [DEPLOY.md](DEPLOY.md)), para o painel mostrar as
-   30 ordens fictícias e as atrasadas.
-3. **Navegador limpo:** abra uma janela anônima, só com a aba do OpsBoard. Nada de favoritos, outras
-   abas, e-mail ou notificações; feche o que puder disparar alerta.
-4. **Aparência:** tema claro, zoom de 110% a 125% (o texto precisa ficar legível no vídeo), janela de
-   cerca de 1280 × 800.
-5. **Arquivos à mão:** `docs/examples/ordens-exemplo.csv` aberto na pasta, para a importação. Os
-   e-mails de responsável desse arquivo são do seed de desenvolvimento: na demonstração, apague a
-   coluna `assigneeEmail` antes, ou use o "Baixar modelo" da própria tela.
-6. **Segunda aba pronta:** o repositório no GitHub, na aba Actions (com a última execução verde) e o
-   README.
+**Na pilha local** (padrão, http://localhost:8080):
+
+```bash
+docker compose up -d --build --wait
+npm run db:seed
+DEMO_SUPERVISOR_EMAIL=supervisor@opsboard.dev DEMO_SUPERVISOR_PASSWORD=opsboard123 \
+DEMO_OPERATOR_EMAIL=ana@opsboard.dev DEMO_OPERATOR_PASSWORD=opsboard123 \
+npm run video:demo
+```
+
+**Na produção** (exige a URL direta do Neon no `DATABASE_URL` do terminal e a confirmação digitada do
+host, antes e depois, por causa do `--reset-demo`):
+
+```bash
+ALLOW_DEMO_RESET=true DATABASE_URL='<url direta do Neon>' \
+DEMO_SUPERVISOR_EMAIL=supervisora@example.com DEMO_SUPERVISOR_PASSWORD=opsboard-demo \
+DEMO_OPERATOR_EMAIL=ana@example.com DEMO_OPERATOR_PASSWORD=opsboard-demo \
+npm run video:demo -- --base https://opsboard-sage.vercel.app \
+  --api https://opsboard-api-yo0n.onrender.com --reset-demo
+```
+
+O `--api` acorda a API (`/health`) antes de gravar; o `--reset-demo` roda o `seed:demo` antes e
+depois, para o vídeo começar com os dados limpos e não deixar sujeira.
+
+Saída: `docs/video/opsboard-demo.webm` (fora do git), mais uma captura por cena em
+`docs/video/cenas/`, para conferir sem assistir. Sem `ffmpeg` instalado, não há conversão para MP4.
 
 ## Cenas
 
-| Tempo     | Na tela                                                                            | Fala sugerida                                                                                                                                                              |
-| --------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00–0:10 | Tela de login                                                                      | "Este é o OpsBoard, um painel de ordens de serviço que eu fiz com React, NestJS e PostgreSQL. Vou entrar como supervisora."                                                |
-| 0:10–0:25 | Login com `supervisora@example.com`; painel                                        | "O painel mostra quantas ordens há em cada status e quais estão atrasadas, com prazo vencido e ainda ativas."                                                              |
-| 0:25–0:40 | Clique no card **Atrasadas** → lista filtrada                                      | "Cada card leva para a lista já filtrada. O filtro fica na URL, então dá para recarregar ou mandar o link para alguém."                                                    |
-| 0:40–0:55 | Abrir uma ordem → detalhe com o **Histórico**                                      | "No detalhe, o histórico mostra quem fez o quê e quando: criação, atribuição, edição e mudanças de status."                                                                |
-| 0:55–1:10 | **Nova ordem**, escolher o responsável Ana; depois **Atribuir** ao Bruno           | "Como supervisora, eu crio uma ordem e escolho o responsável. Posso passar para outra pessoa, e isso também entra no histórico."                                           |
-| 1:10–1:30 | **Sair**; login com `ana@example.com`; abrir uma ordem de outra pessoa             | "Agora como operadora. Ela vê todas as ordens, mas só inicia e conclui as dela, e não cancela, não exclui e não atribui. A API também recusa: não é só o botão escondido." |
-| 1:30–1:45 | Voltar para a supervisora; **Exportar CSV**; **Importar CSV** → Validar → Importar | "Dá para exportar a lista filtrada em CSV e importar ordens em lote. A importação valida antes e é tudo ou nada: se uma linha tiver erro, nada é gravado."                 |
-| 1:45–2:00 | Aba do GitHub: **Actions** verde e o README                                        | "Tudo tem testes: unitários, integração com banco real e ponta a ponta com Playwright, rodando no GitHub Actions a cada push. O README explica como rodar e as decisões."  |
+| #   | Tempo     | Na tela                                                                                      | Legenda                                                                                     |
+| --- | --------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | 0:00–0:07 | Cartão de título                                                                             | **OpsBoard** — painel de ordens de serviço com React, NestJS e PostgreSQL                   |
+| 2   | 0:07–0:17 | Login da supervisora (senha mascarada)                                                       | Entrando como supervisora. Todos os dados são fictícios.                                    |
+| 3   | 0:17–0:29 | Painel; cursor passa pelos cards                                                             | O painel conta as ordens por status e destaca as atrasadas.                                 |
+| 4   | 0:29–0:39 | Clique em **Atrasadas** → lista filtrada                                                     | Cada card abre a lista já filtrada. O filtro fica na URL.                                   |
+| 5   | 0:39–0:51 | Abre uma ordem e desce até o **Histórico**                                                   | O histórico mostra quem fez o quê e quando.                                                 |
+| 6   | 0:51–1:09 | **Nova ordem** "Trocar lâmpadas do galpão B"; depois **Atribuir** à Ana                      | Criando uma ordem e atribuindo à operadora Ana. Tudo entra no histórico.                    |
+| 7   | 1:09–1:31 | Sai; entra como Ana; abre a ordem; **Iniciar** e **Concluir**                                | Como operadora: sem Cancelar, Atribuir ou Excluir. Ela inicia e conclui as próprias ordens. |
+| 8   | 1:31–1:41 | Lista filtrada por **Concluída**; **Exportar CSV**                                           | Exportando a lista filtrada em CSV: arquivo baixado.                                        |
+| 9   | 1:41–2:05 | Volta à supervisora; **Importar CSV** com erros → relatório; depois arquivo válido → importa | Importação tudo ou nada: com erro, nada é gravado. Arquivo válido: 3 ordens importadas.     |
+| 10  | 2:05–2:13 | Painel com os números novos                                                                  | O painel já mostra as novas ordens, sem recarregar.                                         |
+| 11  | 2:13–2:25 | Repositório no GitHub, aba Actions e README (se o CI estiver verde); senão, cartão final     | Testes e CI no GitHub Actions. Código e documentação no repositório.                        |
 
-## O que NÃO mostrar
+A cena 11 é tolerante a falha: sem rede, com o CI que não esteja verde ou com a página diferente do
+esperado, o vídeo termina num cartão com o endereço do repositório.
 
-- Nenhuma senha real, token, `.env`, painel do Render, do Vercel ou do Neon (eles mostram segredos).
-- As credenciais da demonstração podem aparecer: são públicas e estão no README.
-- Abas pessoais, e-mail, notificações, área de trabalho, histórico do navegador.
-- O terminal com variáveis de ambiente.
+## O que nunca aparece
 
-## Como gravar e publicar
+- Senha em texto (o campo é do tipo senha; a gravação mostra só os pontos).
+- E-mails reais, abas pessoais, extensões, painéis do Render, Vercel ou Neon: o Playwright grava um
+  navegador limpo, só com a aba do OpsBoard.
 
-1. **Gravar:** use o gravador do sistema. No Windows, a Ferramenta de Captura (Win + Shift + S, modo
-   vídeo) ou a Xbox Game Bar (Win + Alt + R); no macOS, Cmd + Shift + 5. Grave só a janela do
-   navegador, com áudio do microfone.
-2. **Revisar:** assista uma vez inteira procurando dados pessoais na tela antes de publicar.
-3. **Publicar:** envie ao YouTube como **Não listado** (só quem tem o link vê).
-4. **README:** cole o link na linha "Vídeo de demonstração" do topo do README, faça o commit e o push.
+## Depois de gravar
+
+1. Assistir uma vez inteira e aprovar.
+2. Publicar no YouTube como **Não listado**.
+3. Colocar o link na linha "Vídeo de demonstração" do README, fazer o commit e o push.
