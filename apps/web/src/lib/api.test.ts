@@ -6,6 +6,7 @@ import {
   apiGet,
   apiPatch,
   apiUpload,
+  apiBaseUrl,
   setUnauthorizedHandler,
 } from './api';
 import { getToken, setToken } from './session';
@@ -35,6 +36,19 @@ async function caught(promise: Promise<unknown>): Promise<unknown> {
 }
 
 afterEach(() => setUnauthorizedHandler(() => {}));
+
+describe('apiBaseUrl', () => {
+  it.each([
+    [{}, '/api'],
+    [{ VITE_API_URL: '' }, '/api'],
+    [{ VITE_API_URL: '   ' }, '/api'],
+    [{ VITE_API_URL: 'https://opsboard-api.onrender.com' }, 'https://opsboard-api.onrender.com'],
+    [{ VITE_API_URL: 'https://opsboard-api.onrender.com/' }, 'https://opsboard-api.onrender.com'],
+    [{ VITE_API_URL: ' http://localhost:3000// ' }, 'http://localhost:3000'],
+  ])('%j → %s', (env, expected) => {
+    expect(apiBaseUrl(env)).toBe(expected);
+  });
+});
 
 describe('apiGet', () => {
   it('chama /api + caminho com o token no header', async () => {

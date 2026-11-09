@@ -1,8 +1,15 @@
 import type { components } from './api-types';
 import { clearToken, getToken } from './session';
 
-// Cliente HTTP mínimo sobre `fetch`. Todas as chamadas usam o prefixo /api, que o proxy
-// (Vite em dev, nginx no Docker) encaminha para a API.
+// Cliente HTTP mínimo sobre `fetch`. Por padrão as chamadas usam o prefixo /api, que o proxy
+// (Vite em dev, nginx no Docker) encaminha para a API. No deploy com front e API em domínios
+// diferentes (Vercel + Render), `VITE_API_URL` entra no build com o endereço da API.
+
+/** Base das chamadas: `VITE_API_URL` sem a barra final, ou `/api` (mesma origem). */
+export function apiBaseUrl(env: { VITE_API_URL?: string } = import.meta.env): string {
+  const configured = env.VITE_API_URL?.trim().replace(/\/+$/, '');
+  return configured ? configured : '/api';
+}
 
 export type ServerErrorCode = components['schemas']['ErrorCode'];
 export type ValidationDetail = components['schemas']['ValidationDetailDto'];
@@ -126,7 +133,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
 
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, { ...init, headers });
+    response = await fetch(`${apiBaseUrl()}${path}`, { ...init, headers });
   } catch (error) {
     // Cancelamento é intencional (o TanStack Query cancela ao trocar de filtro): não é erro.
     if (init.signal?.aborted) throw error;
