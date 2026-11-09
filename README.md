@@ -585,7 +585,6 @@ Formato da importação (`multipart/form-data`, campo `file`, query `dryRun=true
 - **Exportação limitada a 10.000 linhas** (`EXPORT_MAX_ROWS`): acima disso é preciso filtrar mais. O arquivo é montado em memória, sem streaming.
 - **A exportação não serve de entrada para a importação**: ela traz nomes, não e-mails, e tem colunas (`id`, `status`, datas) que a importação não aceita.
 - **Só supervisor importa**: o operador não vê o botão, a tela mostra acesso negado e a API responde 403.
-- **CORS sem `Content-Disposition` exposto**: com o front na mesma origem não faz diferença. Um cliente em outra origem liberada em `CORS_ORIGINS` não leria o nome do arquivo e usaria o nome padrão.
 
 - **e2e só no Chromium**, com um projeto que emula celular. Firefox e WebKit ficaram de fora.
 - **e2e serial, com um banco compartilhado**: um worker só, sem paralelismo. Cada teste cria os próprios dados e compara contagens por diferença.

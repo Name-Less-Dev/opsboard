@@ -24,6 +24,8 @@ export function configureApp(app: INestApplication): void {
     origin: config.corsOrigins.length > 0 ? config.corsOrigins : false,
     // O token vai no header Authorization, não em cookie: sem credentials.
     credentials: false,
-    exposedHeaders: [REQUEST_ID_HEADER],
+    // Content-Disposition: com o front em outro domínio, o navegador só deixa ler o nome do
+    // arquivo exportado (opsboard-ordens-AAAAMMDD-HHmm.csv) se a API expuser o header.
+    exposedHeaders: [REQUEST_ID_HEADER, 'Content-Disposition'],
   });
 }

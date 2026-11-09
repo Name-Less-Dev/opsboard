@@ -91,7 +91,9 @@ describe('Segurança HTTP (e2e)', () => {
         const actual = await request(app.getHttpServer())
           .get('/health')
           .set('Origin', 'https://ops.example.com');
-        expect(actual.headers['access-control-expose-headers']).toBe('x-request-id');
+        expect(actual.headers['access-control-expose-headers']).toBe(
+          'x-request-id,Content-Disposition',
+        );
       } finally {
         await app.close();
       }
