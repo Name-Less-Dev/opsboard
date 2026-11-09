@@ -1,0 +1,8 @@
+# Achados do gitleaks revisados no Dia 12: são valores fixos de TESTE, não segredos.
+# - JWT de teste dos testes de integração da API (nunca usado fora deles)
+e6f158c9c844e945154e1324ed723750c894e922:apps/api/test/setup-env.ts:generic-api-key:4
+e6f158c9c844e945154e1324ed723750c894e922:apps/api/test/guards.e2e-spec.ts:generic-api-key:26
+# - JWT da API que o Playwright sobe só para o e2e (porta 3100, banco _e2e)
+e3d0664b93ac54f27bc6cd077cbcae834818b055:apps/web/playwright.config.ts:generic-api-key:68
+# - texto marcador do teste que confere que o conteúdo do CSV não vai para os logs
+b7dadd33ac29327cff0a0a4fe642278630c8f9bb:apps/api/test/csv.e2e-spec.ts:generic-api-key:564
