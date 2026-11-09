@@ -23,7 +23,9 @@ services:
         value: 1h
       - key: SWAGGER_ENABLED
         value: 'true'
-      - key: TRUST_PROXY # 1 salto: o balanceador do Render
-        value: '1'
+      # Medido em produção (Dia 12): com 1, a API contava pelo IP do nó de proxy do Render (vários
+      # nós, 429 alternando com 401 para o mesmo cliente). Ver docs/DEPLOY.md.
+      - key: TRUST_PROXY
+        value: '2'
       - key: APP_TIMEZONE
         value: America/Sao_Paulo
