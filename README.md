@@ -11,7 +11,7 @@ conclusão, com permissões por perfil, histórico de cada ordem, painel e impor
 
 - **App:** https://opsboard-sage.vercel.app
 - **API (Swagger):** https://opsboard-api-yo0n.onrender.com/docs
-- **Vídeo de demonstração:** _(em breve)_
+- **Vídeo de demonstração (1min45):** https://youtu.be/WrFAqDDFVOc
 
 > A API está no plano gratuito do Render e **dorme após 15 minutos sem uso**: o primeiro acesso pode
 > levar cerca de 1 minuto. Se o login demorar, abra [https://opsboard-api-yo0n.onrender.com/health](https://opsboard-api-yo0n.onrender.com/health),
