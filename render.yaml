@@ -23,9 +23,9 @@ services:
         value: 1h
       - key: SWAGGER_ENABLED
         value: 'true'
-      # Medido em produção (Dia 12): com 1, a API contava pelo IP do nó de proxy do Render (vários
-      # nós, 429 alternando com 401 para o mesmo cliente). Ver docs/DEPLOY.md.
+      # Medido em produção (Dia 12): com 1 e com 2 a API contava pelo IP de um proxy do Render (que
+      # muda a cada requisição: 429 alternando com 401, ou nunca 429). Ver docs/DEPLOY.md.
       - key: TRUST_PROXY
-        value: '2'
+        value: '3'
       - key: APP_TIMEZONE
         value: America/Sao_Paulo
