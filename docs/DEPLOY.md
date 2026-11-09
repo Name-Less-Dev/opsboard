@@ -42,16 +42,28 @@ Nenhum valor real fica no repositório. Os sensíveis só existem nos painéis.
 | `NODE_ENV`            | Render (`render.yaml`) | Sim             | `production`                                                                                | Liga as validações de produção                                                                               |
 | `JWT_EXPIRES_IN`      | Render (`render.yaml`) | Sim             | `1h`                                                                                        | Validade do token                                                                                            |
 | `SWAGGER_ENABLED`     | Render (`render.yaml`) | Não             | `true`                                                                                      | Liga o `/docs` em produção (é uma demonstração)                                                              |
-| `TRUST_PROXY`         | Render (`render.yaml`) | Não             | `1`                                                                                         | Saltos de proxy confiáveis para ler o IP real (limite de login). Ver o risco abaixo                          |
+| `TRUST_PROXY`         | Render (`render.yaml`) | Sim             | `3`                                                                                         | Saltos de proxy confiáveis para ler o IP real (limite de login). No Render são 3, medido (ver abaixo)        |
 | `APP_TIMEZONE`        | Render (`render.yaml`) | Não             | `America/Sao_Paulo`                                                                         | Fuso do CSV                                                                                                  |
 | `PORT`                | Render (automática)    | —               | `10000`                                                                                     | O Render define; a API lê                                                                                    |
 | `LOGIN_RATE_LIMIT`    | —                      | Não             | (padrão `5`)                                                                                | Fica no padrão                                                                                               |
 | `DIRECT_DATABASE_URL` | **Só no seu terminal** | Para migrations | `postgresql://usuario:SENHA@ep-xxx.us-east-1.aws.neon.tech/opsboard?sslmode=require`        | URL **direta** (sem `-pooler`) do Neon, para `prisma migrate deploy`. Nunca vai para o Render nem para o git |
 
 **`TRUST_PROXY`**: é o número de proxies à frente da API cujo `X-Forwarded-For` é confiável. Valor
-menor que o real faz todo mundo dividir a mesma contagem do limite de login (um visitante pode
-bloquear o login dos outros por 1 minuto); valor maior deixa o cliente forjar o IP e escapar do
-limite. A API valida que é um inteiro ≥ 0 na subida.
+menor que o real faz a API contar as tentativas pelo IP de um proxy, e visitantes diferentes dividem a
+contagem (um pode bloquear o login dos outros por 1 minuto); valor maior deixa o cliente forjar o IP
+e escapar do limite. A API valida que é um inteiro ≥ 0 na subida.
+
+O Render não documenta quantos proxies há na frente da aplicação, então o valor foi **medido** no
+Dia 12, errando a senha do mesmo computador até o limite e depois forjando `X-Forwarded-For`:
+
+| Valor | Mesmo cliente, 8 tentativas erradas    | Com IP forjado depois do bloqueio | Leitura                                    |
+| ----- | -------------------------------------- | --------------------------------- | ------------------------------------------ |
+| `1`   | 429 e 401 alternados                   | 401 (contagem espalhada)          | Conta pelo balanceador, que varia          |
+| `2`   | Nunca 429                              | 401                               | Conta pela borda da CDN, que varia         |
+| `3`   | 401 nas 5 primeiras, depois sempre 429 | 429 (o forjado não escapa)        | Conta pelo IP real do cliente: **correto** |
+
+Se o Render mudar a rede, o sintoma é o mesmo das linhas `1` e `2`: repita o teste (cada rodada
+bloqueia o login da sua rede por 1 minuto).
 
 **SSL**: as duas URLs do Neon já vêm com `sslmode=require`; não remova. A conexão sem SSL é recusada
 pelo Neon.
