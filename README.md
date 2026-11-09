@@ -25,6 +25,9 @@ conclusão, com permissões por perfil, histórico de cada ordem, painel e impor
 | Operadora   | `ana@example.com`         | `opsboard-demo` | Criar para si, iniciar e concluir as próprias ordens, exportar CSV          |
 | Operador    | `bruno@example.com`       | `opsboard-demo` | Igual à operadora                                                           |
 
+Para testar a importação na demonstração, use o **Baixar modelo** da própria tela: os arquivos de
+[docs/examples](docs/examples) usam os e-mails do ambiente local e acusam responsável desconhecido lá.
+
 ## Capturas de tela
 
 | Painel                                                                                                  | Lista com filtros                                                                                     |
