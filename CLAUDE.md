@@ -15,6 +15,12 @@ em entrevista tudo o que estiver aqui.
 - Mostrar mudanças no modelo de dados antes de criar a migration.
 - Manter este arquivo atualizado (stack, comandos, decisões).
 
+## Deploy e demonstração pública
+
+- Nenhum segredo no repositório nem no histórico do git. Variáveis sensíveis só nos painéis dos provedores. O histórico é verificado antes de o repositório ficar público.
+- Ambiente de demonstração: só dados fictícios (e-mails em `@example.com`), credenciais de demonstração documentadas, e dados que podem ser redefinidos a qualquer momento (`seed:demo`).
+- Só afirmar no README e nos textos o que foi executado de fato: "CI verde" só com a aba Actions verde; "deploy no ar" só depois de o smoke test passar contra a URL pública.
+
 ## Convenções
 
 - Código, enums, banco e rotas em inglês (`OPEN`, `IN_PROGRESS`, `/work-orders`).
