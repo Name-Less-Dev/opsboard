@@ -1,0 +1,29 @@
+# Blueprint do Render: a API em contêiner, a partir do Dockerfile multi-stage (estágio runtime).
+# Valores sensíveis ficam como `sync: false`: o Render pede no painel e nada vai para o git.
+services:
+  - type: web
+    name: opsboard-api
+    runtime: docker
+    plan: free
+    region: virginia # perto do Neon em AWS us-east-1
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL # URL do pooler do Neon, com sslmode=require
+        sync: false
+      - key: JWT_SECRET # gerado com: openssl rand -hex 32
+        sync: false
+      - key: CORS_ORIGINS # só a URL de produção do front no Vercel
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 1h
+      - key: SWAGGER_ENABLED
+        value: 'true'
+      - key: TRUST_PROXY # 1 salto: o balanceador do Render
+        value: '1'
+      - key: APP_TIMEZONE
+        value: America/Sao_Paulo
